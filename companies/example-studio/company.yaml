@@ -1,0 +1,94 @@
+apiVersion: acme.dev/v1alpha1
+kind: Company
+metadata:
+  name: example-studio
+  revision: 1
+
+mission:
+  statement: Ship small, tested products with bounded financial risk.
+  owner: human:board
+  kpis:
+    - id: validated_products
+      target: 2
+      period: quarter
+
+tools:
+  - research.search
+  - research.fetch
+  - artifacts.write
+  - publishing.publish
+  - finance.pay
+
+schemas:
+  - schemas/product-hypothesis.json
+  - schemas/evidence-pack.json
+  - schemas/product-brief.json
+
+modelProfiles:
+  planner-high:
+    capability: reasoning_and_tools
+    maxCostPerTask: 8.00
+    fallback: defer
+  extractor-fast:
+    capability: structured_extraction
+    maxCostPerTask: 0.30
+    fallback: retry_then_defer
+
+roles:
+  - id: researcher
+    purpose: Gather cited evidence and identify uncertainty.
+    skills: [web-research, source-verification]
+    modelProfile: extractor-fast
+    tools:
+      allow: [research.search, research.fetch, artifacts.write]
+    dataScopes: [market.public]
+
+  - id: product-lead
+    purpose: Convert evidence into a scoped product proposal.
+    skills: [market-synthesis, product-brief]
+    modelProfile: planner-high
+    tools:
+      allow: [research.search, artifacts.write]
+    dataScopes: [market.public, company.product]
+    mayDelegateTo: [researcher]
+
+workflows:
+  - id: validate-product
+    version: 1
+    inputSchema: schemas/product-hypothesis.json
+    steps:
+      - id: research
+        runAs: researcher
+        outputSchema: schemas/evidence-pack.json
+      - id: brief
+        runAs: product-lead
+        needs: [research]
+        outputSchema: schemas/product-brief.json
+      - id: approve
+        type: humanGate
+        needs: [brief]
+        policy: publish-external-copy
+
+actions:
+  - id: publish-external-copy
+    tool: publishing.publish
+    risk: external_reversible
+    idempotency: dedupe_by_content_hash
+    approval:
+      require: passkey
+      roles: [human:board]
+      ttl: 10m
+  - id: spend-money
+    tool: finance.pay
+    risk: consequential
+    idempotency: dedupe_by_payment_key
+    approval:
+      require: hardware_passkey
+      quorum: 2
+      roles: [human:board, human:finance]
+      ttl: 5m
+
+evaluations:
+  required:
+    - workflow-contracts
+    - policy-negative-cases
