@@ -30,6 +30,10 @@ from acme.spec.models import CompanySpec
 from acme.workers.native import NativeWorker, Skill
 
 
+class UntrustedPackError(Exception):
+    """Raised when asked to load a pack with executable code without trust."""
+
+
 @dataclass
 class CompanyPack:
     directory: Path
@@ -39,7 +43,15 @@ class CompanyPack:
     scenarios: list[dict] = field(default_factory=list)  # for the evaluation gate
 
 
-def load_pack(directory: str | Path) -> CompanyPack:
+def load_pack(directory: str | Path, *, trusted: bool = True) -> CompanyPack:
+    """Load a CompanyPack.
+
+    ``pack.py`` is executed as Python — loading a pack you do not control is
+    arbitrary code execution (the failure mode behind Paperclip's 2026 agent-
+    config→host-execution CVE). ``trusted`` must be True to run it; pass
+    ``trusted=False`` for untrusted/customer-supplied manifests to load the
+    declared `company.yaml` only and refuse the code.
+    """
     directory = Path(directory)
     spec = load_company_spec(directory)
     skills: dict[str, Skill] = {}
@@ -48,6 +60,10 @@ def load_pack(directory: str | Path) -> CompanyPack:
 
     pack_py = directory / "pack.py"
     if pack_py.exists():
+        if not trusted:
+            raise UntrustedPackError(
+                f"{pack_py} contains executable code; refusing to load an "
+                f"untrusted pack. Only pass trusted=True for packs you control.")
         mod_name = f"acme_pack_{spec.metadata.name.replace('-', '_')}"
         module_spec = importlib.util.spec_from_file_location(mod_name, pack_py)
         module = importlib.util.module_from_spec(module_spec)

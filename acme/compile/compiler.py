@@ -13,11 +13,22 @@ Validation matrix (see IMPLEMENTATION_PLAN.md §4):
 
 from __future__ import annotations
 
+import re
+
 from acme.compile.errors import CompileError, CompileResult
 from acme.kernel.records import CompanyRevision
 from acme.spec.models import CompanySpec, Risk, StepType
 
 SUPPORTED_API_VERSIONS = {"acme.dev/v1alpha1"}
+
+# A company name becomes a tenant key / Postgres prefix; constrain it to a safe
+# slug so a manifest cannot inject into identifiers or collide across tenants.
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+
+# Resource-exhaustion guards: a malicious/careless manifest must not be able to
+# request unbounded parallelism.
+MAX_FANOUT = 32
+MAX_VERIFIERS = 32
 
 # Friction rank of a risk tier (higher = more human friction / harder to abuse).
 # Used to forbid a company from *weakening* an engine-locked action.
@@ -72,6 +83,11 @@ def compile_company(spec: CompanySpec) -> CompileResult:
     # E-VERSION
     if spec.api_version not in SUPPORTED_API_VERSIONS:
         err("E-VERSION", f"unsupported apiVersion {spec.api_version!r}", "apiVersion")
+
+    # E-SLUG: company name must be a safe tenant slug.
+    if not SLUG_RE.match(spec.metadata.name or ""):
+        err("E-SLUG", f"company name {spec.metadata.name!r} is not a valid slug "
+            f"(^[a-z0-9][a-z0-9-]{{0,63}}$)", "metadata.name")
 
     # Roles: tools, profiles, delegation targets exist.
     for role in spec.roles:
@@ -166,6 +182,10 @@ def compile_company(spec: CompanySpec) -> CompileResult:
                 if not step.fanout or step.fanout < 2:
                     err("E-FANOUT", f"fanout step {wf.id}.{step.id} needs fanout>=2",
                         f"workflows.{wf.id}.{step.id}")
+                elif step.fanout > MAX_FANOUT:
+                    err("E-FANOUT", f"fanout step {wf.id}.{step.id} fanout "
+                        f"{step.fanout} exceeds cap {MAX_FANOUT}",
+                        f"workflows.{wf.id}.{step.id}")
                 if step.aggregate is None:
                     err("E-FANOUT", f"fanout step {wf.id}.{step.id} needs an "
                         f"aggregate (majority|best|first)",
@@ -174,6 +194,10 @@ def compile_company(spec: CompanySpec) -> CompileResult:
                 if not step.verifiers or step.verifiers < 1:
                     err("E-VERIFY", f"verify step {wf.id}.{step.id} needs "
                         f"verifiers>=1", f"workflows.{wf.id}.{step.id}")
+                elif step.verifiers > MAX_VERIFIERS:
+                    err("E-VERIFY", f"verify step {wf.id}.{step.id} verifiers "
+                        f"{step.verifiers} exceeds cap {MAX_VERIFIERS}",
+                        f"workflows.{wf.id}.{step.id}")
                 if not step.needs:
                     err("E-VERIFY", f"verify step {wf.id}.{step.id} must 'needs' "
                         f"the step it verifies", f"workflows.{wf.id}.{step.id}")

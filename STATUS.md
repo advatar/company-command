@@ -71,9 +71,19 @@
 
 **77 tests** pass with Postgres+DBOS; 66 pass (11 infra skipped) with none. Multi-agent is a promoted-on-evidence mechanism, not a default.
 
+## Hardening (branch `acme-hardening`)
+
+- [x] **Compiler hardening**: company-name slug validation (`E-SLUG`, safe tenant keys) + fan-out/verifier upper-bound caps (`E-FANOUT`/`E-VERIFY`, DoS guard).
+- [x] **Telemetry** (`acme/telemetry.py`): pluggable Null/InMemory/OpenTelemetry; gateway emits decision events with secrets scrubbed; event log stays authoritative. Enable with `ACME_OTEL=1` + `pip install '.[otel]'`.
+- [x] **Untrusted-pack guard**: `load_pack(dir, trusted=False)` refuses to execute `pack.py` (arbitrary-code / Paperclip-style RCE boundary).
+- [x] **Multi-tenant isolation**: per-company event log, company-scoped action digests, verified on a shared Postgres (`tests/test_isolation.py`).
+- [x] **Per-company DBOS queues**: concurrency-capped per-tenant queues so one tenant can't starve others.
+
+**88 tests** pass with Postgres+DBOS; 75 pass (13 infra skipped) with none.
+
 ## Next
 
-- [ ] Remaining production hardening (see docs/OPERATIONS.md): per-company queue limits, OpenTelemetry export, multi-tenant isolation tests for untrusted CompanyPacks.
+- [ ] Remaining items in docs/OPERATIONS.md "Still open" (OpenInference for model calls, row-level DB tenant enforcement, approval-TTL sweeper).
 - [ ] Optional: run fan-out candidates as durable DBOS steps; delegation-chain capabilities.
 
 Run the full infra suite:
