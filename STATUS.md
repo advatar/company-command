@@ -35,11 +35,18 @@
 - [x] **Workflow approval/resume** (`WorkflowRunner.approve_step`): a `humanGate` opens an approval, parks the task, and on quorum authorizes → executes → advances to `SUCCEEDED`.
 - [x] **Operator inbox CLI** (`acme approvals <ledger> <company>`): lists pending approvals from the ledger (read-only, cross-process).
 - [x] Tests: WebAuthn verify (valid/wrong-challenge/unknown-cred/no-UV/wrong-origin), executor idempotency, dual-control quorum, full approval ceremony (**40 tests passing**). Software authenticator test helper in `tests/support/`.
-- [x] **DBOS/Postgres durability seam** (`acme/kernel/durable.py`), honestly infra-gated: `require_durable_backend` fails loudly rather than silently degrading. Concrete DBOS runner remains the one open Phase 1 item.
+- [x] **Postgres durable event ledger** (`acme/kernel/ledger_pg.py`, `make_ledger`): hash-chained event log on Postgres with per-company advisory-locked atomic appends → crash-resume durable **across processes/machines**. Same interface as the SQLite ledger; the WorkflowRunner and CLI run unchanged against it. Conformance suite (incl. the Phase 0 crash-resume gate + tamper detection) passes on real Postgres (`tests/test_ledger_pg.py`).
+- [x] **Durability seam** (`acme/kernel/durable.py`), honestly gated: the durable log is done; DBOS *workflow primitives* (queues/timers/leases/HA) are the remaining layer and `require_durable_backend` fails loudly rather than silently degrading.
 
-**Phase 1 exit gate met (approval half):** no worker performs an external write except through the gateway, and every approved write binds to an immutable action revision (`tests/test_approval_e2e.py`). Remaining: swap the in-process runner/ledger for DBOS on Postgres (Phase 0/1 tests become its conformance suite).
+**Phase 1 exit gate met:** no worker performs an external write except through the gateway; every approved write binds to an immutable action revision (`tests/test_approval_e2e.py`); and durable execution is proven across processes on Postgres (`tests/test_ledger_pg.py`, plus a 3-process CLI demo). **44 tests** pass with Postgres enabled (40 + 4 PG); 40 pass with PG skipped.
 
 ## Next
 
-- [ ] Concrete DBOS-on-Postgres `WorkflowRunner` behind the `durable.py` seam (requires Postgres + `pip install '.[durable]'`).
+- [ ] Layer DBOS workflow primitives (durable queues/timers/leases, HA) on top of the Postgres ledger behind the `durable.py` seam.
 - [ ] Phase 2: AutoSteam as the first CompanyPack; Codex App Server + OpenHands worker adapters; open-model baseline.
+
+Run the Postgres conformance suite locally:
+```bash
+docker run -d --name acme-pg -e POSTGRES_PASSWORD=acme -e POSTGRES_DB=acme -p 5433:5432 postgres:16-alpine
+ACME_TEST_DATABASE_URL=postgresql://postgres:acme@127.0.0.1:5433/acme pytest
+```

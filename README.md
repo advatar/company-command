@@ -31,11 +31,18 @@ Implemented and tested (**40 tests**):
   offline-defer backend and an OpenAI-compatible backend (`acme/workers`, `acme/models`)
 - Operator **CLI**: `compile`, `run`, `inspect`, `schema`, `approvals`
 
+- **Postgres durable ledger** (`acme/kernel/ledger_pg.py`, `make_ledger`):
+  the hash-chained event log on Postgres with per-company advisory-locked
+  atomic appends, so crash-resume is durable **across processes/machines**. The
+  runner and CLI run unchanged against it.
+
 Exit gates met: Phase 0 crash-resume (`tests/test_workflow.py`); Phase 1 — no
 worker writes except through the gateway, every approved write bound to an
-immutable action revision (`tests/test_approval_e2e.py`). The one open Phase 1
-item is the DBOS-on-Postgres durable runtime, honestly gated in
-`acme/kernel/durable.py` (see [ADR-001](docs/adr/ADR-001-dbos-first-durability.md)).
+immutable action revision (`tests/test_approval_e2e.py`), and durable execution
+across processes on Postgres (`tests/test_ledger_pg.py`). Remaining: DBOS
+workflow primitives (queues/timers/leases/HA) layered on the Postgres ledger,
+honestly gated in `acme/kernel/durable.py` (see
+[ADR-001](docs/adr/ADR-001-dbos-first-durability.md)).
 
 ## Quickstart
 

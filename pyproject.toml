@@ -11,8 +11,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
-# Postgres-backed durable runtime (Phase 1 durability upgrade; infra-gated).
-durable = ["dbos>=0.20"]
+# Postgres-backed durable runtime. psycopg powers the durable event ledger
+# (acme/kernel/ledger_pg.py); dbos is for the workflow primitives layered on top.
+durable = ["psycopg[binary]>=3", "dbos>=2"]
 
 [project.scripts]
 acme = "acme.cli:main"

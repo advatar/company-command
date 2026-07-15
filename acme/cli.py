@@ -8,7 +8,7 @@ from pathlib import Path
 
 from acme.compile.compiler import compile_company
 from acme.gateway.gate import Gateway
-from acme.kernel.ledger import Ledger
+from acme.kernel import make_ledger
 from acme.kernel.workflow import WorkflowRunner
 from acme.spec.jsonschema import company_json_schema_str
 from acme.spec.loader import load_company_spec
@@ -57,7 +57,7 @@ def cmd_run(args) -> int:
             print(f"  - {e}", file=sys.stderr)
         return 1
     rev = result.revision
-    ledger = Ledger(args.ledger or ":memory:")
+    ledger = make_ledger(args.ledger)
     gateway = Gateway(ledger, _actions_index(spec))
     runner = WorkflowRunner(rev, ledger, NativeWorker(), gateway)
 
@@ -72,7 +72,7 @@ def cmd_run(args) -> int:
 
 
 def cmd_inspect(args) -> int:
-    ledger = Ledger(args.ledger)
+    ledger = make_ledger(args.ledger)
     n = 0
     for se in ledger.read(args.company_name):
         n += 1
@@ -90,7 +90,7 @@ def cmd_approvals(args) -> int:
     """
     from acme.kernel.records import EventType
 
-    ledger = Ledger(args.ledger)
+    ledger = make_ledger(args.ledger)
     requested: dict[str, dict] = {}
     authorized: set[str] = set()
     for se in ledger.read(args.company_name):

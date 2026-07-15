@@ -1,15 +1,19 @@
 """Durable-runtime seam.
 
-Phase 0/1 run on the in-process `WorkflowRunner` over the hash-chained event
-ledger, which is enough to prove crash-resume and idempotency in tests. The
-*production* durability upgrade (ADR-001) is DBOS on Postgres.
+The durability upgrade (ADR-001) lands in two layers:
 
-This module defines the seam and an availability check so the upgrade is honest:
-Acme does not pretend to be Postgres-durable when it is running on SQLite. A
-DBOS-backed implementation of `WorkflowRunner`'s interface is a Phase 1
-deliverable that requires a running Postgres and the optional `dbos` dependency;
-until then `require_durable_backend()` fails loudly rather than silently
-degrading.
+  1. Durable event log — DONE. `acme.kernel.ledger_pg.PostgresLedger` puts the
+     hash-chained event log on Postgres with per-company advisory-locked atomic
+     appends, so crash-resume is durable across processes and machines (proven
+     by the conformance tests in tests/test_ledger_pg.py, which include the
+     Phase 0 crash-resume gate running over Postgres). Select it via
+     `acme.kernel.make_ledger("postgresql://...")`.
+  2. Durable workflow *primitives* — queues, timers, leases, HA — via DBOS on
+     Postgres. Not wired yet; `require_durable_backend()` below fails loudly
+     rather than letting a caller assume they exist.
+
+The point of the guard is honesty: Acme does not pretend to have DBOS's
+scheduling guarantees just because its event log is on Postgres.
 """
 
 from __future__ import annotations
@@ -57,6 +61,8 @@ def require_durable_backend(dsn: str | None) -> None:
             "(set ACME_DATABASE_URL). See ADR-001."
         )
     raise NotImplementedError(
-        "DBOS-backed WorkflowRunner is the Phase 1 durability deliverable and is "
-        "not wired yet. The in-process runner is the current default."
+        "DBOS-backed workflow primitives (queues/timers/leases/HA) are not wired "
+        "yet. The durable event log IS available now via "
+        "make_ledger('postgresql://...') — use that for cross-process durability; "
+        "the in-process runner drives it."
     )
