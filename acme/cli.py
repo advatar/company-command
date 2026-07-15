@@ -140,6 +140,28 @@ def cmd_approvals(args) -> int:
     return 0
 
 
+def cmd_eval(args) -> int:
+    from acme.eval.harness import evaluate
+    from acme.pack import load_pack
+
+    pack = load_pack(args.company)
+    if not pack.scenarios:
+        print("no SCENARIOS in pack.py; cannot evaluate", file=sys.stderr)
+        return 1
+    report = evaluate(pack.spec, baseline=args.baseline, variant=args.variant,
+                      scenarios=pack.scenarios, skills=pack.skills,
+                      handlers=pack.handlers)
+    b, v = report.baseline, report.variant
+    print(f"baseline {b.workflow}: success={b.success_rate} cost={b.cost} "
+          f"denies={b.policy_denies}")
+    print(f"variant  {v.workflow}: success={v.success_rate} cost={v.cost} "
+          f"denies={v.policy_denies}")
+    print(f"verdict: {'PROMOTE' if report.promote else 'KEEP BASELINE'}")
+    for r in report.reasons:
+        print(f"  - {r}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="acme", description="Acme company control plane")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -170,6 +192,12 @@ def build_parser() -> argparse.ArgumentParser:
     pa.add_argument("ledger")
     pa.add_argument("company_name")
     pa.set_defaults(func=cmd_approvals)
+
+    pe = sub.add_parser("eval", help="baseline vs multi-agent variant evaluation gate")
+    pe.add_argument("company")
+    pe.add_argument("--baseline", required=True, help="single-agent workflow id")
+    pe.add_argument("--variant", required=True, help="multi-agent workflow id")
+    pe.set_defaults(func=cmd_eval)
     return p
 
 

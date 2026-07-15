@@ -26,7 +26,10 @@ class NativeWorker:
         self._profiles = profiles or ProfileRegistry()
 
     def run(self, envelope: TaskEnvelope) -> WorkerResult:
-        skill = self._skills.get(envelope.step_id)
+        # Dispatch by step id, then fall back to the role id — so several steps
+        # driven by the same role (e.g. a work step and a fan-out step) can share
+        # one skill without duplicating registrations.
+        skill = self._skills.get(envelope.step_id) or self._skills.get(envelope.role)
         if skill is not None:
             return skill(envelope)
         # No registered skill: consult the model profile (defers in Phase 0).

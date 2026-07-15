@@ -104,6 +104,31 @@ class WorkflowRunner:
                 done.add(sid)
                 continue
 
+            if step.get("type") == "fanout":
+                self._emit(EventType.step_started, handle.task_id, {"step": sid})
+                artifact = self._run_fanout(handle, step, inputs)
+                self._emit(EventType.step_succeeded, handle.task_id,
+                           {"step": sid, "artifact": artifact})
+                handle.artifacts[sid] = artifact
+                done.add(sid)
+                continue
+
+            if step.get("type") == "verify":
+                self._emit(EventType.step_started, handle.task_id, {"step": sid})
+                artifact = self._run_verify(handle, step, inputs)
+                if not artifact["verified"]:
+                    handle.state = TaskState.WAITING_FOR_HUMAN
+                    handle.waiting_on = {"step": sid, "reason": "verification failed",
+                                         "approvals": artifact["approvals"],
+                                         "verifiers": artifact["verifiers"]}
+                    self._set_state(handle)
+                    return handle
+                self._emit(EventType.step_succeeded, handle.task_id,
+                           {"step": sid, "artifact": artifact})
+                handle.artifacts[sid] = artifact
+                done.add(sid)
+                continue
+
             # work step
             self._emit(EventType.step_started, handle.task_id, {"step": sid})
             result = self._run_work_step(handle, step, inputs)
@@ -150,6 +175,67 @@ class WorkflowRunner:
         for intent in result.intents:
             self._gateway.decide(intent)
         return result
+
+    def _envelope(self, handle: TaskHandle, step: dict, inputs: dict,
+                  extra: dict) -> TaskEnvelope:
+        role_id = step.get("runAs")
+        role = self._roles.get(role_id, {})
+        return TaskEnvelope(
+            company=handle.company, task_id=handle.task_id, step_id=step["id"],
+            role=role_id or "", model_profile=role.get("modelProfile"),
+            inputs={**inputs, **extra,
+                    "_upstream": {n: handle.artifacts.get(n)
+                                  for n in step.get("needs", [])}},
+            allowed_tools=tuple(role.get("tools", {}).get("allow", [])),
+        )
+
+    def _run_fanout(self, handle: TaskHandle, step: dict, inputs: dict) -> dict:
+        """Run the role `fanout` times in parallel, then aggregate typed results.
+
+        Multi-agent only where it pays: this is a diversity mechanism, promoted
+        over a single-agent baseline only by the evaluation gate (acme.eval).
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        from acme.kernel.aggregate import aggregate
+
+        n = int(step["fanout"])
+
+        def one(i: int) -> dict:
+            env = self._envelope(handle, step, inputs, {"_candidate": i, "_of": n})
+            return self._worker.run(env).artifact or {}
+
+        with ThreadPoolExecutor(max_workers=min(n, 8)) as pool:
+            candidates = list(pool.map(one, range(n)))
+
+        return aggregate(candidates, how=step.get("aggregate", "majority"),
+                         key=step.get("aggregateKey", "label"),
+                         score_key=step.get("scoreKey", "score"))
+
+    def _run_verify(self, handle: TaskHandle, step: dict, inputs: dict) -> dict:
+        """Run independent verifiers over the verified step's artifact.
+
+        Each verifier gets a distinct `_verifier` index so it can apply a
+        different lens. Passes iff approvals >= verifyQuorum.
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        m = int(step["verifiers"])
+        quorum = int(step.get("verifyQuorum") or 1)
+        target = step.get("needs", [None])[0]
+        target_artifact = handle.artifacts.get(target, {})
+
+        def one(i: int) -> bool:
+            env = self._envelope(handle, step, inputs,
+                                 {"_verifier": i, "_of": m,
+                                  "_verify_target": target_artifact})
+            return bool((self._worker.run(env).artifact or {}).get("approve"))
+
+        with ThreadPoolExecutor(max_workers=min(m, 8)) as pool:
+            approvals = sum(pool.map(one, range(m)))
+
+        return {"verified": approvals >= quorum, "approvals": int(approvals),
+                "verifiers": m, "quorum": quorum, "target": target}
 
     @dataclass
     class _GateResult:

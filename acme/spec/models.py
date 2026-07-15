@@ -88,6 +88,14 @@ class Role(_Base):
 class StepType(str, Enum):
     work = "work"
     human_gate = "humanGate"
+    fanout = "fanout"     # run a role N times in parallel + aggregate
+    verify = "verify"     # independent verifiers over a prior artifact (quorum)
+
+
+class Aggregate(str, Enum):
+    majority = "majority"  # modal value of aggregateKey across candidates
+    best = "best"          # candidate with the highest scoreKey
+    first = "first"        # first successful candidate
 
 
 class WorkflowStep(_Base):
@@ -99,6 +107,17 @@ class WorkflowStep(_Base):
     policy: str | None = None  # for humanGate steps: which action policy governs it
     # loop_bound makes an intentional cycle explicit and finite.
     loop_bound: int | None = Field(default=None, alias="loopBound")
+
+    # fanout: run the role `fanout` times, aggregate by `aggregate` over
+    # `aggregate_key` (and `score_key` for 'best').
+    fanout: int | None = None
+    aggregate: Aggregate | None = None
+    aggregate_key: str = Field(default="label", alias="aggregateKey")
+    score_key: str = Field(default="score", alias="scoreKey")
+
+    # verify: run `verifiers` independent checks; need `verify_quorum` approvals.
+    verifiers: int | None = None
+    verify_quorum: int | None = Field(default=None, alias="verifyQuorum")
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 

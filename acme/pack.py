@@ -36,6 +36,7 @@ class CompanyPack:
     spec: CompanySpec
     skills: dict[str, Skill] = field(default_factory=dict)
     handlers: dict[str, ToolHandler] = field(default_factory=dict)
+    scenarios: list[dict] = field(default_factory=list)  # for the evaluation gate
 
 
 def load_pack(directory: str | Path) -> CompanyPack:
@@ -43,6 +44,7 @@ def load_pack(directory: str | Path) -> CompanyPack:
     spec = load_company_spec(directory)
     skills: dict[str, Skill] = {}
     handlers: dict[str, ToolHandler] = {}
+    scenarios: list[dict] = []
 
     pack_py = directory / "pack.py"
     if pack_py.exists():
@@ -52,8 +54,10 @@ def load_pack(directory: str | Path) -> CompanyPack:
         module_spec.loader.exec_module(module)
         skills = dict(getattr(module, "SKILLS", {}))
         handlers = dict(getattr(module, "HANDLERS", {}))
+        scenarios = list(getattr(module, "SCENARIOS", []))
 
-    return CompanyPack(directory=directory, spec=spec, skills=skills, handlers=handlers)
+    return CompanyPack(directory=directory, spec=spec, skills=skills,
+                       handlers=handlers, scenarios=scenarios)
 
 
 @dataclass

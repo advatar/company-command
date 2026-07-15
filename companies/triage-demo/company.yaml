@@ -1,0 +1,50 @@
+apiVersion: acme.dev/v1alpha1
+kind: Company
+metadata:
+  name: triage-demo
+  revision: 1
+
+mission:
+  statement: Triage support tickets into bug/feature/question.
+  owner: human:lead
+
+schemas:
+  - schemas/ticket.json
+  - schemas/label.json
+
+roles:
+  - id: classifier
+    purpose: Label a ticket. Fan-out runs several heuristics in parallel.
+    skills: [classify]
+  - id: verifier
+    purpose: Independently check a label before accepting it.
+    skills: [verify]
+
+workflows:
+  # single-agent baseline: one heuristic
+  - id: triage-single
+    version: 1
+    inputSchema: schemas/ticket.json
+    steps:
+      - id: classify
+        runAs: classifier
+        outputSchema: schemas/label.json
+
+  # multi-agent variant: 3 heuristics + majority vote, then independent verify
+  - id: triage-panel
+    version: 1
+    inputSchema: schemas/ticket.json
+    steps:
+      - id: panel
+        type: fanout
+        runAs: classifier
+        fanout: 3
+        aggregate: majority
+        aggregateKey: label
+        outputSchema: schemas/label.json
+      - id: check
+        type: verify
+        runAs: verifier
+        needs: [panel]
+        verifiers: 3
+        verifyQuorum: 2
