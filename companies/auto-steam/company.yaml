@@ -1,0 +1,103 @@
+apiVersion: acme.dev/v1alpha1
+kind: Company
+metadata:
+  name: auto-steam
+  revision: 1
+
+mission:
+  statement: Ship small, tested Steam/iOS micro-games with a human release gate.
+  owner: human:studio-lead
+  kpis:
+    - id: shipped_titles
+      target: 4
+      period: quarter
+
+tools:
+  - market.score
+  - design.spec
+  - qa.playtest
+  - compliance.packet
+  - steam.publish
+
+schemas:
+  - schemas/concept.json
+  - schemas/game-spec.json
+  - schemas/qa-report.json
+  - schemas/compliance-packet.json
+
+modelProfiles:
+  planner-high:
+    capability: reasoning_and_tools
+    fallback: defer
+  extractor-fast:
+    capability: structured_extraction
+    fallback: retry_then_defer
+
+roles:
+  - id: market-analyst
+    purpose: Score a concept against the opportunity model.
+    skills: [market-research, opportunity-scoring]
+    modelProfile: extractor-fast
+    tools:
+      allow: [market.score]
+    dataScopes: [market.public]
+
+  - id: game-director
+    purpose: Turn a scored concept into a game spec from family defaults.
+    skills: [game-design]
+    modelProfile: planner-high
+    tools:
+      allow: [design.spec]
+    dataScopes: [company.product]
+
+  - id: qa-engineer
+    purpose: Run the headless playtest and static checks.
+    skills: [playtest]
+    tools:
+      allow: [qa.playtest]
+
+  - id: compliance-officer
+    purpose: Build the compliance packet; require human release approval.
+    skills: [compliance]
+    tools:
+      allow: [compliance.packet]
+
+workflows:
+  - id: ship-title
+    version: 1
+    inputSchema: schemas/concept.json
+    steps:
+      - id: market
+        runAs: market-analyst
+        outputSchema: schemas/concept.json
+      - id: design
+        runAs: game-director
+        needs: [market]
+        outputSchema: schemas/game-spec.json
+      - id: qa
+        runAs: qa-engineer
+        needs: [design]
+        outputSchema: schemas/qa-report.json
+      - id: compliance
+        runAs: compliance-officer
+        needs: [qa]
+        outputSchema: schemas/compliance-packet.json
+      - id: release
+        type: humanGate
+        needs: [compliance]
+        policy: publish-to-steam
+
+actions:
+  - id: publish-to-steam
+    tool: steam.publish
+    risk: external_reversible
+    idempotency: dedupe_by_build_hash
+    approval:
+      require: passkey
+      roles: [human:studio-lead]
+      ttl: 15m
+
+evaluations:
+  required:
+    - workflow-contracts
+    - policy-negative-cases

@@ -50,12 +50,19 @@ honestly gated in `acme/kernel/durable.py` (see
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"          # or: pip install pydantic pyyaml pytest
 
-pytest                            # 40 tests
+pytest                            # 56 tests (63 with Postgres+DBOS enabled)
 python -m acme.cli compile companies/example-studio
+python -m acme.cli run      companies/auto-steam ship-title      # a second, different company
 python -m acme.cli run      companies/example-studio validate-product --ledger acme.sqlite
 python -m acme.cli approvals acme.sqlite example-studio
 python -m acme.cli schema -o schemas/company.schema.json
 ```
+
+A **CompanyPack** is a directory: a declared `company.yaml` plus an optional
+`pack.py` supplying the company's deterministic domain skills and effect
+handlers. `companies/example-studio` and `companies/auto-steam` are two very
+different companies on the same kernel — the governance core is generic, the
+domain lives in the pack.
 
 `run` drives the example workflow to its `humanGate` and parks it in
 `WAITING_FOR_HUMAN`; `approvals` shows the pending action and its challenge. A
@@ -73,10 +80,11 @@ acme/
   kernel/     records, hash-chained ledger, workflow runner, idempotent executor, durable seam
   gateway/    ActionIntent, A0–A4 policy, default-deny gate, approvals+quorum,
               WebAuthn verifier, credential enrollment
-  workers/    Worker API + bounded native worker
+  workers/    Worker API + native worker + Codex/OpenHands CLI adapters
   models/     capability profiles + backends (offline-defer / OpenAI-compat)
+  pack.py     CompanyPack loader + build_runner wiring
   cli.py
-companies/example-studio/company.yaml
+companies/    example-studio/ and auto-steam/ (company.yaml [+ pack.py])
 tests/        + tests/support/ (software WebAuthn authenticator)
 ```
 

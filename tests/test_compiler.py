@@ -101,3 +101,44 @@ def test_bad_apiversion_rejected():
     r = _compile(d)
     assert not r.ok
     assert any(e.code == "E-VERSION" for e in r.errors)
+
+
+def test_reserved_engine_namespace_cannot_be_invented():
+    d = _spec_dict()
+    d["tools"].append("acme.self")
+    d["actions"].append({"id": "acme.something", "tool": "acme.self",
+                         "risk": "observe"})
+    r = _compile(d)
+    assert not r.ok
+    assert any(e.code == "E-META-LOCKED" for e in r.errors)
+
+
+def test_locked_meta_action_cannot_be_weakened():
+    d = _spec_dict()
+    d["tools"].append("acme.audit")
+    # audit.disable is locked at 'prohibited'; declaring it reversible weakens it
+    d["actions"].append({"id": "acme.audit.disable", "tool": "acme.audit",
+                         "risk": "external_reversible",
+                         "idempotency": "x",
+                         "approval": {"require": "passkey", "roles": ["human:board"]}})
+    r = _compile(d)
+    assert not r.ok
+    assert any(e.code == "E-TIER-LOWERED" for e in r.errors)
+
+
+def test_locked_meta_action_at_locked_tier_ok():
+    d = _spec_dict()
+    d["tools"].append("acme.audit")
+    d["actions"].append({"id": "acme.audit.disable", "tool": "acme.audit",
+                         "risk": "prohibited"})
+    r = _compile(d)
+    assert r.ok, r.errors
+
+
+def test_functional_domain_annotation_accepted():
+    d = _spec_dict()
+    for a in d["actions"]:
+        if a["id"] == "spend-money":
+            a["domain"] = "money"
+    r = _compile(d)
+    assert r.ok, r.errors

@@ -42,9 +42,20 @@
 
 - [x] **DBOS durable execution engine** (`acme/kernel/dbos_engine.py`): work-step pipelines run as DBOS steps keyed by the Acme task id — durable step **memoization** (a completed step never re-runs on resume), automatic step **retries**, and a durable **queue**. Behind the `durable.py` seam (`make_durable_engine`), gated on a Postgres DSN. Tested against Postgres (`tests/test_dbos.py`): memoization/resume, transient-retry recovery, durable queue. **47 tests** pass with PG+DBOS enabled.
 
+## Phase 2 — CompanyPacks, worker portability, open models (branch `acme-phase0-bootstrap`)
+
+- [x] **CompanyPack** loader + run wiring (`acme/pack.py`): a company is a directory (`company.yaml` + optional `pack.py` exposing `SKILLS`/`HANDLERS`); `build_runner` wires compile → ledger → gateway → native worker(skills) → executor(handlers). CLI `run` uses the pack.
+- [x] **AutoSteam as the first CompanyPack** (`companies/auto-steam/`): a second, unrelated company (market → design → qa → compliance → release humanGate) runs end-to-end on the same kernel with deterministic domain skills and a gateway-guarded `steam.publish`. Proves the framework is generic; nothing studio-specific lives in `acme/*` (`tests/test_autosteam_pack.py`).
+- [x] **Codex + OpenHands worker adapters** (`acme/workers/cli_agents.py`): implement the same `Worker` contract; build a prompt from the envelope, shell out to the agent CLI, parse the result. Availability-gated (defer safely when the binary is absent); prompt/parse logic unit-tested via injected runner (`tests/test_cli_workers.py`).
+- [x] **Open-model baseline**: `OpenAICompatBackend` verified end-to-end against an in-process mock OpenAI-compatible server (same protocol as vLLM/SGLang/llama.cpp), incl. fail-closed on unreachable endpoint (`tests/test_openmodel.py`).
+- [x] **Locked engine catalog + functional domain** (from the MandamusCo Company-in-a-Box plan §5): the compiler forbids inventing/weakening reserved `acme.*` meta-governance actions (`E-META-LOCKED`, `E-TIER-LOWERED` — no self-authorized de-escalation); optional `domain` (software/ops/money/legal) on actions.
+
+**63 tests** pass with PG+DBOS enabled (56 + 7 infra); 56 pass with none. Phase 2 established: the same typed kernel runs two distinct companies, routes steps to native/Codex/OpenHands workers, and drives open models.
+
 ## Next
 
-- [ ] Phase 2: AutoSteam as the first CompanyPack; Codex App Server + OpenHands worker adapters; open-model baseline.
+- [ ] Wire the DBOS engine to drive CompanyPack pipelines when a durable DSN is configured (unify the in-process + DBOS execution paths).
+- [ ] Phase 3: measured multi-agent (parallel fan-out, independent verifiers) only where it beats a single-agent baseline.
 
 Run the full infra suite:
 ```bash

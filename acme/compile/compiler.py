@@ -19,6 +19,29 @@ from acme.spec.models import CompanySpec, Risk, StepType
 
 SUPPORTED_API_VERSIONS = {"acme.dev/v1alpha1"}
 
+# Friction rank of a risk tier (higher = more human friction / harder to abuse).
+# Used to forbid a company from *weakening* an engine-locked action.
+RISK_RANK = {
+    Risk.observe: 0,
+    Risk.bounded_internal: 1,
+    Risk.external_reversible: 2,
+    Risk.consequential: 3,
+    Risk.prohibited: 4,
+}
+
+# Engine/meta-governance action namespace. Companies may not invent actions here
+# (they are the gate's own controls), and may not weaken a known one below its
+# locked floor. This is the "meta-governance stays engine-locked / no
+# self-authorized de-escalation" invariant from the Company-in-a-Box plan §5.
+RESERVED_PREFIX = "acme."
+LOCKED_ACTIONS = {
+    "acme.mandate.set": Risk.prohibited,   # redefine the authority graph
+    "acme.policy.set": Risk.prohibited,     # redefine policy
+    "acme.registry.set": Risk.prohibited,   # redefine the action catalog
+    "acme.audit.disable": Risk.prohibited,  # tamper with the audit trail
+    "acme.grant.self": Risk.prohibited,     # self-grant authority
+}
+
 # Risk classes that produce external/durable effects and therefore need both
 # idempotency semantics and (for the top two) an eligible approver.
 SIDE_EFFECTING = {Risk.external_reversible, Risk.consequential}
@@ -70,6 +93,18 @@ def compile_company(spec: CompanySpec) -> CompileResult:
         if action.tool not in tool_ids:
             err("E-REF-TOOL", f"action {action.id!r} uses unknown tool "
                 f"{action.tool!r}", f"actions.{action.id}.tool")
+
+        # Engine-locked namespace: no inventing meta actions, no weakening them.
+        if action.id.startswith(RESERVED_PREFIX):
+            locked = LOCKED_ACTIONS.get(action.id)
+            if locked is None:
+                err("E-META-LOCKED", f"action {action.id!r} is in the reserved "
+                    f"{RESERVED_PREFIX!r} engine namespace and is not a known "
+                    f"engine action", f"actions.{action.id}")
+            elif RISK_RANK[action.risk] < RISK_RANK[locked]:
+                err("E-TIER-LOWERED", f"engine action {action.id!r} may not be "
+                    f"weakened below tier {locked.value!r} (declared "
+                    f"{action.risk.value!r})", f"actions.{action.id}.risk")
 
         if action.risk in SIDE_EFFECTING and not action.idempotency:
             err("E-IDEMPOTENCY", f"side-effecting action {action.id!r} "

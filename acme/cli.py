@@ -49,25 +49,25 @@ def cmd_compile(args) -> int:
 
 
 def cmd_run(args) -> int:
-    spec = load_company_spec(args.company)
-    result = compile_company(spec)
-    if not result.ok:
+    from acme.compile.errors import CompileFailed
+    from acme.pack import build_runner, load_pack
+
+    pack = load_pack(args.company)
+    try:
+        ctx = build_runner(pack, ledger_url=args.ledger)
+    except CompileFailed as exc:
         print("COMPILE FAILED (run aborted):", file=sys.stderr)
-        for e in result.errors:
+        for e in exc.errors:
             print(f"  - {e}", file=sys.stderr)
         return 1
-    rev = result.revision
-    ledger = make_ledger(args.ledger)
-    gateway = Gateway(ledger, _actions_index(spec))
-    runner = WorkflowRunner(rev, ledger, NativeWorker(), gateway)
 
-    handle = runner.start(args.workflow, inputs={})
+    handle = ctx.runner.start(args.workflow, inputs={})
     print(f"task {handle.task_id}  state={handle.state.value}")
     for sid, art in handle.artifacts.items():
         print(f"  step {sid}: {art}")
     if handle.waiting_on:
         print(f"  waiting_on: {handle.waiting_on}")
-    print(f"  ledger chain valid: {ledger.verify_chain(rev.company_name)}")
+    print(f"  ledger chain valid: {ctx.ledger.verify_chain(ctx.revision.company_name)}")
     return 0
 
 

@@ -130,10 +130,21 @@ class Approval(_Base):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
+class Domain(str, Enum):
+    """Functional domain of an action (per the Company-in-a-Box framing:
+    a company is a governed action surface across software/ops/money/legal)."""
+
+    software = "software"
+    ops = "ops"
+    money = "money"
+    legal = "legal"
+
+
 class Action(_Base):
     id: str
     tool: str
     risk: Risk
+    domain: Domain | None = None
     # idempotency: how a repeat of this action is de-duplicated at commit time.
     # Required for any action with side effects (compiler enforces).
     idempotency: str | None = None
