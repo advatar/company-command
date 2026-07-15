@@ -42,12 +42,15 @@ class TaskHandle:
 
 class WorkflowRunner:
     def __init__(self, revision: CompanyRevision, ledger: Ledger,
-                 worker: Worker, gateway: Gateway, executor: Executor | None = None):
+                 worker: Worker, gateway: Gateway, executor: Executor | None = None,
+                 durable_engine=None):
         self._rev = revision
         self._ledger = ledger
         self._worker = worker
         self._gateway = gateway
         self._executor = executor
+        # When set, work steps run durably-memoized on Postgres via DBOS.
+        self._durable = durable_engine
         self._workflows = {w["id"]: w for w in revision.compiled.get("workflows", [])}
         self._roles = {r["id"]: r for r in revision.compiled.get("roles", [])}
         self._actions = {a["id"]: a for a in revision.compiled.get("actions", [])}
@@ -131,6 +134,17 @@ class WorkflowRunner:
                                             for n in step.get("needs", [])}},
             allowed_tools=tuple(role.get("tools", {}).get("allow", [])),
         )
+
+        if self._durable is not None:
+            # Durable-memoized execution over Postgres. Work steps are read-only
+            # (side effects go through human gates), so only status+artifact are
+            # checkpointed; intents are a human-gate concern, not a work step.
+            def thunk() -> dict:
+                r = self._worker.run(envelope)
+                return {"status": r.status, "artifact": r.artifact or {}}
+            d = self._durable.run_step(handle.task_id, step["id"], thunk)
+            return WorkerResult(status=d["status"], artifact=d["artifact"])
+
         result = self._worker.run(envelope)
         # Any intent a worker emits must clear the gateway; none auto-executes.
         for intent in result.intents:

@@ -50,11 +50,24 @@ def cmd_compile(args) -> int:
 
 def cmd_run(args) -> int:
     from acme.compile.errors import CompileFailed
+    from acme.config import Settings
+    from acme.log import configure
     from acme.pack import build_runner, load_pack
+
+    configure()
+    settings = Settings.from_env()
+    ledger_url = args.ledger or settings.effective_ledger_url
+
+    engine = None
+    if args.durable or (settings.durable and args.ledger is None):
+        from acme.kernel.durable import make_durable_engine
+        engine = make_durable_engine(ledger_url or settings.database_url)
+        ledger_url = ledger_url or settings.database_url
+        print(f"[durable] DBOS execution on {_redact(ledger_url)}")
 
     pack = load_pack(args.company)
     try:
-        ctx = build_runner(pack, ledger_url=args.ledger)
+        ctx = build_runner(pack, ledger_url=ledger_url, durable_engine=engine)
     except CompileFailed as exc:
         print("COMPILE FAILED (run aborted):", file=sys.stderr)
         for e in exc.errors:
@@ -69,6 +82,13 @@ def cmd_run(args) -> int:
         print(f"  waiting_on: {handle.waiting_on}")
     print(f"  ledger chain valid: {ctx.ledger.verify_chain(ctx.revision.company_name)}")
     return 0
+
+
+def _redact(url: str | None) -> str:
+    if not url:
+        return "(none)"
+    import re
+    return re.sub(r"//[^@]*@", "//***@", url)
 
 
 def cmd_inspect(args) -> int:
@@ -135,7 +155,10 @@ def build_parser() -> argparse.ArgumentParser:
     pr = sub.add_parser("run", help="compile and run a workflow")
     pr.add_argument("company")
     pr.add_argument("workflow")
-    pr.add_argument("--ledger", help="sqlite path (default in-memory)")
+    pr.add_argument("--ledger", help="ledger URL: sqlite path or postgresql://... "
+                    "(default in-memory, or $ACME_DATABASE_URL)")
+    pr.add_argument("--durable", action="store_true",
+                    help="run work steps durably on DBOS/Postgres (needs a DSN)")
     pr.set_defaults(func=cmd_run)
 
     pi = sub.add_parser("inspect", help="dump a ledger's events")

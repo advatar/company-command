@@ -20,15 +20,7 @@ def _uid(prefix):
     return f"{prefix}-{secrets.token_hex(6)}"
 
 
-@pytest.fixture(scope="module")
-def engine():
-    from acme.kernel.dbos_engine import DbosEngine
-    eng = DbosEngine(DSN, name="acme-test")
-    yield eng
-    eng.shutdown()
-
-
-def test_step_memoization_resume(engine):
+def test_step_memoization_resume(dbos_engine):
     """Re-running the same task id resumes from checkpoint: steps run once."""
     calls = {"research": 0, "brief": 0}
     ledgered = []
@@ -39,18 +31,18 @@ def test_step_memoization_resume(engine):
             return {"did": name}
         return run
 
-    engine.register("memo-co", {"research": mk("research"), "brief": mk("brief")},
+    dbos_engine.register("memo-co", {"research": mk("research"), "brief": mk("brief")},
                     ledger_emit=lambda step, art: ledgered.append(step))
 
     tid = _uid("task-memo")
-    r1 = engine.run("memo-co", tid, ["research", "brief"])
-    r2 = engine.run("memo-co", tid, ["research", "brief"])  # memoized
+    r1 = dbos_engine.run("memo-co", tid, ["research", "brief"])
+    r2 = dbos_engine.run("memo-co", tid, ["research", "brief"])  # memoized
 
     assert r1 == r2 == {"research": {"did": "research"}, "brief": {"did": "brief"}}
     assert calls == {"research": 1, "brief": 1}   # each step ran exactly once
 
 
-def test_step_retry_recovers_transient_failure(engine):
+def test_step_retry_recovers_transient_failure(dbos_engine):
     attempts = {"n": 0}
 
     def flaky():
@@ -59,15 +51,15 @@ def test_step_retry_recovers_transient_failure(engine):
             raise RuntimeError("transient")
         return {"ok": True}
 
-    engine.register("retry-co", {"only": flaky})
-    result = engine.run("retry-co", _uid("task-retry"), ["only"])
+    dbos_engine.register("retry-co", {"only": flaky})
+    result = dbos_engine.run("retry-co", _uid("task-retry"), ["only"])
     assert result == {"only": {"ok": True}}
     assert attempts["n"] >= 2   # retried at least once, then succeeded
 
 
-def test_durable_queue_executes_enqueued_pipelines(engine):
+def test_durable_queue_executes_enqueued_pipelines(dbos_engine):
     seen = []
-    engine.register("queue-co", {"s": lambda: seen.append("s") or {"done": True}})
-    handle = engine.enqueue("queue-co", _uid("task-queue"), ["s"])
+    dbos_engine.register("queue-co", {"s": lambda: seen.append("s") or {"done": True}})
+    handle = dbos_engine.enqueue("queue-co", _uid("task-queue"), ["s"])
     result = handle.get_result()
     assert result == {"s": {"done": True}}

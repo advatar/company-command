@@ -33,7 +33,10 @@ from acme.gateway.verifier import ApprovalVerifier, DenyByDefaultVerifier
 from acme.ids import content_id
 from acme.kernel.ledger import Ledger
 from acme.kernel.records import Event, EventType, ExecutionReceipt
+from acme.log import get_logger
 from acme.spec.models import Action
+
+_log = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -63,13 +66,16 @@ class Gateway:
         verifier: ApprovalVerifier | None = None,
         bounds: dict[str, Bounds] | None = None,
         now: Callable[[], float] | None = None,
+        approval_store=None,
     ):
         self._ledger = ledger
         self._actions = actions
         self._verifier = verifier or DenyByDefaultVerifier()
         self._bounds = bounds or {}
         self._now = now or time.time
-        self._approvals = ApprovalStore(self._now)
+        # Injectable so approvals can be persisted (Postgres) for cross-process
+        # / HA approval; defaults to in-memory.
+        self._approvals = approval_store or ApprovalStore(self._now)
         self._calls: dict[str, int] = {}   # action_id -> count (bounded-auto)
 
     # -- public API ----------------------------------------------------------
@@ -145,7 +151,7 @@ class Gateway:
                                f"{pa.quorum - len(pa.approvers)} more required",
                                approval_request=self._public_request(pa))
 
-        pa.approvers.add(principal)
+        pa = self._approvals.add_approver(intent.action_digest, principal) or pa
         if not pa.satisfied():
             remaining = pa.quorum - len(pa.approvers)
             return GateOutcome("require_approval", tier,
@@ -242,6 +248,9 @@ class Gateway:
 
     def _receipt(self, intent: ActionIntent, decision: str, tier: Tier,
                  cap_id: str | None, reason: str) -> None:
+        # Log identifiers only — never the challenge, assertion, or capability.
+        _log.info("gate decision=%s tier=%s action=%s digest=%s",
+                  decision, tier.value, intent.action_id, intent.action_digest[:16])
         receipt = ExecutionReceipt(
             intent_digest=intent.action_digest,
             decision=decision,

@@ -65,13 +65,20 @@ class RunContext:
 
 
 def build_runner(pack: CompanyPack, *, ledger_url: str | None = None,
-                 verifier: ApprovalVerifier | None = None) -> RunContext:
-    """Compile a pack and wire runner -> gateway -> worker(skills) -> executor(handlers)."""
+                 verifier: ApprovalVerifier | None = None,
+                 durable_engine=None) -> RunContext:
+    """Compile a pack and wire runner -> gateway -> worker(skills) -> executor(handlers).
+
+    Pass ``durable_engine`` (a launched DbosEngine) to run work steps
+    durably-memoized on Postgres; pass a Postgres ``ledger_url`` to make the
+    event log durable. With neither, execution is in-process (dev/CI default).
+    """
     revision = compile_company(pack.spec).raise_if_failed()
     ledger = make_ledger(ledger_url)
     actions = {a.id: a for a in pack.spec.actions}
     gateway = Gateway(ledger, actions, verifier=verifier)
     executor = Executor(ledger, dict(pack.handlers))
     worker = NativeWorker(skills=pack.skills)
-    runner = WorkflowRunner(revision, ledger, worker, gateway, executor)
+    runner = WorkflowRunner(revision, ledger, worker, gateway, executor,
+                            durable_engine=durable_engine)
     return RunContext(runner=runner, gateway=gateway, ledger=ledger, revision=revision)

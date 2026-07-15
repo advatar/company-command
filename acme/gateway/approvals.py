@@ -72,6 +72,13 @@ class ApprovalStore:
     def get(self, action_digest: str) -> PendingApproval | None:
         return self._by_digest.get(action_digest)
 
+    def add_approver(self, action_digest: str, principal: str) -> PendingApproval | None:
+        """Record one distinct approver; idempotent on duplicates."""
+        pa = self._by_digest.get(action_digest)
+        if pa is not None:
+            pa.approvers.add(principal)
+        return pa
+
     def pending(self) -> list[PendingApproval]:
         now = self._now()
         return [p for p in self._by_digest.values()

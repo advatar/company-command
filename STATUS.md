@@ -52,10 +52,20 @@
 
 **63 tests** pass with PG+DBOS enabled (56 + 7 infra); 56 pass with none. Phase 2 established: the same typed kernel runs two distinct companies, routes steps to native/Codex/OpenHands workers, and drives open models.
 
+## Production-grade unification (branch `acme-phase0-bootstrap`)
+
+- [x] **Unified execution**: `WorkflowRunner` runs work steps durably-memoized on DBOS when a durable engine is configured, through the **same** gateway/human-gate/executor over the Postgres ledger. `build_runner(..., durable_engine=...)`; CLI `run --durable` (or `ACME_DATABASE_URL`). Verified: AutoSteam runs durably end-to-end and publishes once (`tests/test_durable_e2e.py`).
+- [x] **Config layer** (`acme/config.py`): env-driven `Settings` (`ACME_DATABASE_URL`, `ACME_RP_ID/ORIGIN`, `ACME_MODEL_*`); DSN present → durable mode.
+- [x] **Postgres-backed credential + approval stores** (`acme/gateway/stores_pg.py`): enrollment and pending approvals persist so an approval opened on one instance is completed on another — verified cross-instance (`tests/test_stores_pg.py`).
+- [x] **Structured logging** (`acme/log.py`): gateway logs decisions by identifier only (never challenge/assertion/capability); DBOS quieted.
+- [x] **CI + Makefile + docs**: GitHub Actions runs both suites with a Postgres service (`.github/workflows/ci.yml`); `Makefile` (install/test/test-infra/pg-up/run-durable); `docs/ARCHITECTURE.md` + `docs/OPERATIONS.md` runbook.
+
+**71 tests** pass with Postgres+DBOS; 60 pass (11 infra skipped) with none. Durable and in-process modes share one governance path; only the backends differ.
+
 ## Next
 
-- [ ] Wire the DBOS engine to drive CompanyPack pipelines when a durable DSN is configured (unify the in-process + DBOS execution paths).
 - [ ] Phase 3: measured multi-agent (parallel fan-out, independent verifiers) only where it beats a single-agent baseline.
+- [ ] Remaining production hardening (see docs/OPERATIONS.md): per-company queue limits, OpenTelemetry export, multi-tenant isolation tests for untrusted CompanyPacks.
 
 Run the full infra suite:
 ```bash

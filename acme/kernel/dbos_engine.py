@@ -28,6 +28,19 @@ from dbos import DBOS, DBOSConfig, Queue, SetWorkflowID
 _SKILLS: dict[tuple[str, str], Callable[[], dict[str, Any]]] = {}
 _LEDGER_EMIT: dict[str, Callable[[str, dict], None]] = {}
 
+# per-call thunks for run_step(), keyed by workflow id (task::step)
+_THUNKS: dict[str, Callable[[], dict[str, Any]]] = {}
+
+
+@DBOS.step(retries_allowed=True, max_attempts=3)
+def _dispatch_thunk(key: str) -> dict[str, Any]:
+    return _THUNKS[key]()
+
+
+@DBOS.workflow()
+def _one_step(key: str) -> dict[str, Any]:
+    return _dispatch_thunk(key)
+
 
 # Steps are retried on transient failure. This is safe because Acme work steps
 # are required to be idempotent (read-only; side effects go through the gateway
@@ -73,6 +86,20 @@ class DbosEngine:
         """Run the pipeline durably; re-running the same task_id resumes."""
         with SetWorkflowID(task_id):
             return _run_pipeline(company, task_id, step_ids)
+
+    def run_step(self, task_id: str, step_id: str,
+                 thunk: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+        """Execute one work step durably and memoized.
+
+        Keyed by (task_id, step_id): if the process crashed after the step ran
+        but before its result was recorded, re-invoking returns the memoized
+        result without re-running the thunk. `thunk` must return a
+        JSON-serializable dict.
+        """
+        key = f"{task_id}::{step_id}"
+        _THUNKS[key] = thunk
+        with SetWorkflowID(key):
+            return _one_step(key)
 
     def enqueue(self, company: str, task_id: str, step_ids: list[str]):
         """Durably enqueue a pipeline run; returns a DBOS workflow handle."""
