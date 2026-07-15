@@ -155,13 +155,33 @@ def compile_company(spec: CompanySpec) -> CompileResult:
         step_ids = {s.id for s in wf.steps}
         needs_graph: dict[str, list[str]] = {}
         for step in wf.steps:
-            if step.type == StepType.work:
+            if step.type in (StepType.work, StepType.fanout, StepType.verify):
                 if step.run_as is None:
-                    err("E-REF-ROLE", f"work step {wf.id}.{step.id} has no runAs",
-                        f"workflows.{wf.id}.{step.id}")
+                    err("E-REF-ROLE", f"{step.type.value} step {wf.id}.{step.id} "
+                        f"has no runAs", f"workflows.{wf.id}.{step.id}")
                 elif step.run_as not in role_ids:
                     err("E-REF-ROLE", f"step {wf.id}.{step.id} runAs unknown role "
                         f"{step.run_as!r}", f"workflows.{wf.id}.{step.id}")
+            if step.type == StepType.fanout:
+                if not step.fanout or step.fanout < 2:
+                    err("E-FANOUT", f"fanout step {wf.id}.{step.id} needs fanout>=2",
+                        f"workflows.{wf.id}.{step.id}")
+                if step.aggregate is None:
+                    err("E-FANOUT", f"fanout step {wf.id}.{step.id} needs an "
+                        f"aggregate (majority|best|first)",
+                        f"workflows.{wf.id}.{step.id}")
+            if step.type == StepType.verify:
+                if not step.verifiers or step.verifiers < 1:
+                    err("E-VERIFY", f"verify step {wf.id}.{step.id} needs "
+                        f"verifiers>=1", f"workflows.{wf.id}.{step.id}")
+                if not step.needs:
+                    err("E-VERIFY", f"verify step {wf.id}.{step.id} must 'needs' "
+                        f"the step it verifies", f"workflows.{wf.id}.{step.id}")
+                q = step.verify_quorum if step.verify_quorum is not None else 1
+                if step.verifiers and not (1 <= q <= step.verifiers):
+                    err("E-VERIFY", f"verify step {wf.id}.{step.id} verifyQuorum "
+                        f"{q} out of range 1..{step.verifiers}",
+                        f"workflows.{wf.id}.{step.id}")
             if step.type == StepType.human_gate:
                 if step.policy is None or step.policy not in action_ids:
                     err("E-REF-WORKFLOW", f"humanGate {wf.id}.{step.id} references "

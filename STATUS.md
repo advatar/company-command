@@ -62,10 +62,19 @@
 
 **71 tests** pass with Postgres+DBOS; 60 pass (11 infra skipped) with none. Durable and in-process modes share one governance path; only the backends differ.
 
+## Phase 3 — measured multi-agent (branch `acme-phase3`)
+
+- [x] **Fan-out + typed aggregation** (`fanout` step, `acme/kernel/aggregate.py`): run a role N times in parallel (distinct `_candidate` index) and aggregate by majority/best/first, with vote counts + agreement. Compiler validates (`E-FANOUT`).
+- [x] **Independent verifier step** (`verify` step): M verifiers apply distinct lenses (`_verifier` index) over a prior artifact; passes iff approvals ≥ `verifyQuorum`, else escalates to `WAITING_FOR_HUMAN`. Compiler validates (`E-VERIFY`).
+- [x] **The evaluation gate** (`acme/eval`, CLI `acme eval`): runs a single-agent baseline vs a multi-agent variant over scenarios; measures success / cost (invocations) / latency / policy-denials; **PROMOTES the variant only if it beats the baseline on success without unacceptable cost/latency/policy regressions** — encoding STRATEGY.md §5.2 and the multi-agent-failure literature.
+- [x] **Triage demo** (`companies/triage-demo/`): a single-agent workflow (0.667 success) and a fan-out+verify panel (1.0 success at 6× cost) → `acme eval` returns **PROMOTE**; baseline-vs-itself returns **KEEP BASELINE** (`tests/test_phase3.py`).
+
+**77 tests** pass with Postgres+DBOS; 66 pass (11 infra skipped) with none. Multi-agent is a promoted-on-evidence mechanism, not a default.
+
 ## Next
 
-- [ ] Phase 3: measured multi-agent (parallel fan-out, independent verifiers) only where it beats a single-agent baseline.
 - [ ] Remaining production hardening (see docs/OPERATIONS.md): per-company queue limits, OpenTelemetry export, multi-tenant isolation tests for untrusted CompanyPacks.
+- [ ] Optional: run fan-out candidates as durable DBOS steps; delegation-chain capabilities.
 
 Run the full infra suite:
 ```bash

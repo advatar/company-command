@@ -56,7 +56,14 @@ python -m acme.cli run      companies/auto-steam ship-title      # a second, dif
 python -m acme.cli run      companies/example-studio validate-product --ledger acme.sqlite
 python -m acme.cli approvals acme.sqlite example-studio
 python -m acme.cli schema -o schemas/company.schema.json
+python -m acme.cli eval companies/triage-demo --baseline triage-single --variant triage-panel
 ```
+
+The `eval` command is the **multi-agent gate**: it runs a single-agent baseline
+against a fan-out+verify variant over scenarios and only reports `PROMOTE` if the
+multi-agent variant beats the baseline on success without unacceptable cost /
+latency / policy regressions. Adding agents that don't win is theater — the gate
+says so.
 
 A **CompanyPack** is a directory: a declared `company.yaml` plus an optional
 `pack.py` supplying the company's deterministic domain skills and effect
