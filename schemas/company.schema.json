@@ -1,0 +1,672 @@
+{
+  "$defs": {
+    "Action": {
+      "additionalProperties": false,
+      "properties": {
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Approval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "idempotency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency"
+        },
+        "risk": {
+          "$ref": "#/$defs/Risk"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tool",
+        "risk"
+      ],
+      "title": "Action",
+      "type": "object"
+    },
+    "Approval": {
+      "additionalProperties": false,
+      "properties": {
+        "quorum": {
+          "default": 1,
+          "title": "Quorum",
+          "type": "integer"
+        },
+        "require": {
+          "default": "passkey",
+          "title": "Require",
+          "type": "string"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "ttl": {
+          "default": "10m",
+          "title": "Ttl",
+          "type": "string"
+        }
+      },
+      "title": "Approval",
+      "type": "object"
+    },
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "monthly": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Monthly"
+        }
+      },
+      "title": "Budget",
+      "type": "object"
+    },
+    "Escalation": {
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To"
+        },
+        "uncertaintyAbove": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertaintyabove"
+        }
+      },
+      "title": "Escalation",
+      "type": "object"
+    },
+    "Evaluations": {
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required",
+          "type": "array"
+        }
+      },
+      "title": "Evaluations",
+      "type": "object"
+    },
+    "ExitCriteria": {
+      "additionalProperties": false,
+      "properties": {
+        "evaluator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evaluator"
+        },
+        "minimumScore": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimumscore"
+        }
+      },
+      "title": "ExitCriteria",
+      "type": "object"
+    },
+    "KPI": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "period": {
+          "default": "quarter",
+          "title": "Period",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "target"
+      ],
+      "title": "KPI",
+      "type": "object"
+    },
+    "Memory": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical": {
+          "default": "postgres",
+          "title": "Canonical",
+          "type": "string"
+        },
+        "namespaces": {
+          "items": {
+            "$ref": "#/$defs/MemoryNamespace"
+          },
+          "title": "Namespaces",
+          "type": "array"
+        }
+      },
+      "title": "Memory",
+      "type": "object"
+    },
+    "MemoryNamespace": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "requireProvenance": {
+          "default": true,
+          "title": "Requireprovenance",
+          "type": "boolean"
+        },
+        "retention": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retention"
+        },
+        "retrieval": {
+          "default": "hybrid",
+          "title": "Retrieval",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "MemoryNamespace",
+      "type": "object"
+    },
+    "Metadata": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "default": 1,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Metadata",
+      "type": "object"
+    },
+    "Mission": {
+      "additionalProperties": false,
+      "properties": {
+        "kpis": {
+          "items": {
+            "$ref": "#/$defs/KPI"
+          },
+          "title": "Kpis",
+          "type": "array"
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement",
+        "owner"
+      ],
+      "title": "Mission",
+      "type": "object"
+    },
+    "ModelProfile": {
+      "additionalProperties": false,
+      "description": "A capability profile, not a vendor model name (provider neutrality).",
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "fallback": {
+          "default": "defer",
+          "title": "Fallback",
+          "type": "string"
+        },
+        "maxCostPerTask": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maxcostpertask"
+        },
+        "workerPreference": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Workerpreference",
+          "type": "array"
+        }
+      },
+      "required": [
+        "capability"
+      ],
+      "title": "ModelProfile",
+      "type": "object"
+    },
+    "Risk": {
+      "description": "Risk class of an action; maps to an assurance tier in gateway policy.",
+      "enum": [
+        "observe",
+        "bounded_internal",
+        "external_reversible",
+        "consequential",
+        "prohibited"
+      ],
+      "title": "Risk",
+      "type": "string"
+    },
+    "Role": {
+      "additionalProperties": false,
+      "properties": {
+        "budget": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Budget"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "dataScopes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Datascopes",
+          "type": "array"
+        },
+        "escalation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Escalation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "mayDelegateTo": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Maydelegateto",
+          "type": "array"
+        },
+        "modelProfile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Modelprofile"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "tools": {
+          "$ref": "#/$defs/ToolGrant"
+        },
+        "writeAuthority": {
+          "default": false,
+          "title": "Writeauthority",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "purpose"
+      ],
+      "title": "Role",
+      "type": "object"
+    },
+    "StepType": {
+      "enum": [
+        "work",
+        "humanGate"
+      ],
+      "title": "StepType",
+      "type": "string"
+    },
+    "ToolGrant": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allow",
+          "type": "array"
+        }
+      },
+      "title": "ToolGrant",
+      "type": "object"
+    },
+    "Workflow": {
+      "additionalProperties": false,
+      "properties": {
+        "exitCriteria": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExitCriteria"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "inputSchema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputschema"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/WorkflowStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "version": {
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Workflow",
+      "type": "object"
+    },
+    "WorkflowStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "loopBound": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Loopbound"
+        },
+        "needs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Needs",
+          "type": "array"
+        },
+        "outputSchema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outputschema"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy"
+        },
+        "runAs": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runas"
+        },
+        "type": {
+          "$ref": "#/$defs/StepType",
+          "default": "work"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "WorkflowStep",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "apiVersion": {
+      "default": "acme.dev/v1alpha1",
+      "title": "Apiversion",
+      "type": "string"
+    },
+    "evaluations": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Evaluations"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "kind": {
+      "default": "Company",
+      "title": "Kind",
+      "type": "string"
+    },
+    "memory": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Memory"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "metadata": {
+      "$ref": "#/$defs/Metadata"
+    },
+    "mission": {
+      "$ref": "#/$defs/Mission"
+    },
+    "modelProfiles": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ModelProfile"
+      },
+      "title": "Modelprofiles",
+      "type": "object"
+    },
+    "roles": {
+      "items": {
+        "$ref": "#/$defs/Role"
+      },
+      "title": "Roles",
+      "type": "array"
+    },
+    "schemas": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Schemas",
+      "type": "array"
+    },
+    "tools": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tools",
+      "type": "array"
+    },
+    "workflows": {
+      "items": {
+        "$ref": "#/$defs/Workflow"
+      },
+      "title": "Workflows",
+      "type": "array"
+    }
+  },
+  "required": [
+    "metadata",
+    "mission"
+  ],
+  "title": "Acme CompanySpec",
+  "type": "object"
+}
