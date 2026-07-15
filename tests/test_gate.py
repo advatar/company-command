@@ -12,7 +12,8 @@ def _actions():
     return {
         "read-x": Action(id="read-x", tool="research.search", risk=Risk.observe),
         "draft-x": Action(id="draft-x", tool="artifacts.write",
-                          risk=Risk.bounded_internal),
+                          risk=Risk.bounded_internal,
+                          approval=Approval(require="passkey", roles=["human:board"])),
         "publish": Action(id="publish", tool="publishing.publish",
                           risk=Risk.external_reversible,
                           idempotency="dedupe_by_content_hash",
@@ -45,24 +46,44 @@ def test_a2_requires_approval_and_deny_by_default():
     out = _gw().decide(_intent("publish", "publishing.publish"))
     assert out.decision == "require_approval" and out.tier == Tier.A2
     assert out.capability is None
-    # Present a (bogus) assertion; deny-by-default verifier still refuses.
+    # A bogus assertion against the deny-by-default verifier does not authorize;
+    # the approval stays open (a legitimate approver may still act).
     out2 = _gw().decide(_intent("publish", "publishing.publish"), assertion={"x": 1})
-    assert out2.decision == "deny"
+    assert out2.decision == "require_approval"
+    assert out2.capability is None
 
 
-def test_a2_authorized_with_test_verifier():
+def test_a2_authorized_with_eligible_approver():
     out = _gw(verifier=AlwaysApproveVerifier()).decide(
-        _intent("publish", "publishing.publish"), assertion={"sig": "ok"})
+        _intent("publish", "publishing.publish"),
+        assertion={"principal": "human:board"})
     assert out.decision == "authorized"
     assert out.capability is not None
     assert out.capability.single_use is True
 
 
-def test_a3_requires_dual_control():
-    # quorum default 1 would be rejected; our action sets quorum=2 -> ok to request
+def test_a2_ineligible_approver_not_authorized():
     out = _gw(verifier=AlwaysApproveVerifier()).decide(
-        _intent("pay", "finance.pay", amount=100.0), assertion={"sig": "ok"})
-    assert out.tier == Tier.A3 and out.decision == "authorized"
+        _intent("publish", "publishing.publish"),
+        assertion={"principal": "human:intruder"})
+    assert out.decision == "require_approval"  # not authorized
+
+
+def test_a3_requires_two_distinct_approvers():
+    gw = _gw(verifier=AlwaysApproveVerifier())
+    intent = _intent("pay", "finance.pay", amount=100.0)
+    # open the approval
+    assert gw.decide(intent).decision == "require_approval"
+    # first approver: still short of quorum
+    o1 = gw.submit_approval(intent, {"principal": "human:board"})
+    assert o1.decision == "require_approval"
+    # same approver again: does not count twice
+    o1b = gw.submit_approval(intent, {"principal": "human:board"})
+    assert o1b.decision == "require_approval"
+    # second distinct approver: quorum met -> authorized
+    o2 = gw.submit_approval(intent, {"principal": "human:finance"})
+    assert o2.tier == Tier.A3 and o2.decision == "authorized"
+    assert o2.capability is not None
 
 
 def test_a3_single_approver_denied():

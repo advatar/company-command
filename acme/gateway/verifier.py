@@ -17,6 +17,7 @@ from typing import Protocol
 class Decision:
     approved: bool
     reason: str = ""
+    principal: str | None = None   # the authenticated approver, when known
 
 
 class ApprovalVerifier(Protocol):
@@ -27,11 +28,16 @@ class DenyByDefaultVerifier:
     """The safe default. No assertion path exists yet, so everything denies."""
 
     def verify(self, *, approval_request: dict, assertion: dict | None) -> Decision:
-        return Decision(False, "no approval verifier configured (Phase 0 deny-by-default)")
+        return Decision(False, "no approval verifier configured (deny-by-default)")
 
 
 class AlwaysApproveVerifier:
-    """TEST ONLY. Simulates a completed approval ceremony. Never use in prod."""
+    """TEST ONLY. Simulates a completed approval ceremony. Never use in prod.
+
+    Reads the approving principal from the assertion so quorum/eligibility logic
+    can be exercised without a real authenticator.
+    """
 
     def verify(self, *, approval_request: dict, assertion: dict | None) -> Decision:
-        return Decision(True, "test verifier")
+        principal = (assertion or {}).get("principal", "human:test")
+        return Decision(True, "test verifier", principal=principal)

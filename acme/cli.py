@@ -82,6 +82,44 @@ def cmd_inspect(args) -> int:
     return 0
 
 
+def cmd_approvals(args) -> int:
+    """Operator inbox: actions awaiting human approval, read from the ledger.
+
+    Read-only and cross-process (the ledger is the source of truth). An action
+    is pending if it was requested but has no subsequent 'authorized' receipt.
+    """
+    from acme.kernel.records import EventType
+
+    ledger = Ledger(args.ledger)
+    requested: dict[str, dict] = {}
+    authorized: set[str] = set()
+    for se in ledger.read(args.company_name):
+        e = se.event
+        if e.type == EventType.approval_requested:
+            d = e.payload.get("intent_digest")
+            if d:
+                requested[d] = e.payload
+        elif e.type == EventType.execution_receipt and e.payload.get("decision") == "authorized":
+            d = e.payload.get("intent_digest")
+            if d:
+                authorized.add(d)
+
+    pending = [(d, p) for d, p in requested.items() if d not in authorized]
+    if not pending:
+        print("no pending approvals")
+        return 0
+    for d, p in pending:
+        print(f"- {d}")
+        print(f"    tier={p.get('tier')} require={p.get('required')} "
+              f"quorum={p.get('quorum')} eligible={p.get('eligible')}")
+        if p.get("approvers"):
+            print(f"    approved_by={p.get('approvers')}")
+        if p.get("challenge_b64"):
+            print(f"    challenge={p.get('challenge_b64')}")
+    print(f"[{len(pending)} pending]")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="acme", description="Acme company control plane")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -104,6 +142,11 @@ def build_parser() -> argparse.ArgumentParser:
     pi.add_argument("ledger")
     pi.add_argument("company_name")
     pi.set_defaults(func=cmd_inspect)
+
+    pa = sub.add_parser("approvals", help="operator inbox: pending approvals")
+    pa.add_argument("ledger")
+    pa.add_argument("company_name")
+    pa.set_defaults(func=cmd_approvals)
     return p
 
 

@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from acme.gateway.gate import Gateway
+from acme.gateway.intents import ActionIntent
+from acme.kernel.executor import Executor
 from acme.kernel.ledger import Ledger
 from acme.kernel.records import CompanyRevision, Event, EventType, TaskState
 from acme.ids import content_id
@@ -40,13 +42,15 @@ class TaskHandle:
 
 class WorkflowRunner:
     def __init__(self, revision: CompanyRevision, ledger: Ledger,
-                 worker: Worker, gateway: Gateway):
+                 worker: Worker, gateway: Gateway, executor: Executor | None = None):
         self._rev = revision
         self._ledger = ledger
         self._worker = worker
         self._gateway = gateway
+        self._executor = executor
         self._workflows = {w["id"]: w for w in revision.compiled.get("workflows", [])}
         self._roles = {r["id"]: r for r in revision.compiled.get("roles", [])}
+        self._actions = {a["id"]: a for a in revision.compiled.get("actions", [])}
 
     # -- public API ----------------------------------------------------------
 
@@ -139,11 +143,69 @@ class WorkflowRunner:
         waiting_on: dict | None = None
 
     def _run_human_gate(self, handle: TaskHandle, step: dict) -> "WorkflowRunner._GateResult":
-        # A humanGate parks the task; the actual authorization happens when an
-        # approval assertion arrives (Phase 1). Phase 0: deny-by-default -> wait.
-        req = {"step": step["id"], "policy": step.get("policy")}
-        self._emit(EventType.approval_requested, handle.task_id, req)
-        return WorkflowRunner._GateResult(TaskState.WAITING_FOR_HUMAN, waiting_on=req)
+        # A humanGate opens a gateway approval and parks the task. Authorization
+        # happens when approve_step() receives a verified assertion.
+        intent = self._gate_intent(handle, step)
+        outcome = self._gateway.decide(intent)  # opens approval (require_approval)
+        waiting = {
+            "step": step["id"],
+            "policy": step.get("policy"),
+            "intent_digest": intent.action_digest,
+            "approval": outcome.approval_request,
+        }
+        return WorkflowRunner._GateResult(TaskState.WAITING_FOR_HUMAN, waiting_on=waiting)
+
+    def _gate_intent(self, handle: TaskHandle, step: dict) -> ActionIntent:
+        """Deterministically build the ActionIntent a humanGate authorizes.
+
+        Must be identical at park time and approve time so the action digest
+        (and thus the bound approval challenge) is stable.
+        """
+        policy = step.get("policy")
+        action = self._actions.get(policy, {})
+        return ActionIntent(
+            company=handle.company,
+            task_id=handle.task_id,
+            step_id=step["id"],
+            requested_by=f"workflow:{handle.workflow_id}",
+            action_id=policy,
+            tool=action.get("tool", ""),
+            target=handle.task_id,
+            args={"gate": step["id"]},
+        )
+
+    def approve_step(self, task_id: str, workflow_id: str, step_id: str,
+                     assertion: dict) -> TaskHandle:
+        """Submit one approver's assertion for a parked humanGate.
+
+        On reaching quorum the gateway mints a capability, the executor performs
+        the effect exactly once, the gate step is recorded succeeded, and the
+        task is driven to completion. Below quorum the task stays parked.
+        """
+        handle = self.resume(task_id, workflow_id)
+        wf = self._workflows[workflow_id]
+        step = next((s for s in wf["steps"] if s["id"] == step_id), None)
+        if step is None or step.get("type") != "humanGate":
+            raise WorkflowError(f"{step_id!r} is not a humanGate of {workflow_id!r}")
+
+        intent = self._gate_intent(handle, step)
+        outcome = self._gateway.submit_approval(intent, assertion)
+        if outcome.decision != "authorized":
+            handle.state = TaskState.WAITING_FOR_HUMAN
+            handle.waiting_on = {"step": step_id, "reason": outcome.reason,
+                                 "approval": outcome.approval_request}
+            return handle
+
+        # Authorized: perform the effect exactly once through the executor.
+        if self._executor is not None and outcome.capability is not None:
+            result = self._executor.execute(outcome.capability, intent)
+            self._emit(EventType.execution_receipt, task_id,
+                       {"step": step_id, "executed": result.executed,
+                        "duplicate": result.duplicate})
+        self._emit(EventType.step_succeeded, task_id,
+                   {"step": step_id, "artifact": {"authorized": True}})
+        # Drive any remaining steps to completion.
+        return self.resume(task_id, workflow_id)
 
     # -- ledger reconstruction ----------------------------------------------
 

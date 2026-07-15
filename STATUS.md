@@ -27,8 +27,19 @@
 
 **Phase 0 exit gate met:** a process can crash at every step and resume without duplicating a durable effect (`tests/test_workflow.py`).
 
-## Next — Phase 1 (governed effects + human approval)
+## Phase 1 — governed effects + human approval (branch `acme-phase0-bootstrap`)
 
-- [ ] Replace in-process runner/ledger with DBOS on Postgres (same interfaces; Phase 0 tests become the conformance suite).
-- [ ] Real WebAuthn `ApprovalVerifier` bound one-to-one to the immutable action record; commit-time revalidation; operator approval inbox.
-- [ ] Idempotent executor + task-scoped credentials/sandbox profiles.
+- [x] Real **WebAuthn `ApprovalVerifier`** (`acme/gateway/webauthn_verifier.py`) + credential enrollment (`enrollment.py`): verifies an authentication assertion bound 1:1 to the immutable action digest via a fresh challenge; enforces origin/RP binding, **user-verification required**, sign-count monotonicity. Deny-by-default when unconfigured.
+- [x] **Approval sessions + quorum** (`acme/gateway/approvals.py`): distinct-approver accumulation; A3 requires ≥2 distinct principals (dual control); TTL expiry; single-use.
+- [x] **Idempotent executor** (`acme/kernel/executor.py`): performs an authorized effect exactly once (keyed by action digest); capability↔digest binding; replay after crash re-runs nothing.
+- [x] **Workflow approval/resume** (`WorkflowRunner.approve_step`): a `humanGate` opens an approval, parks the task, and on quorum authorizes → executes → advances to `SUCCEEDED`.
+- [x] **Operator inbox CLI** (`acme approvals <ledger> <company>`): lists pending approvals from the ledger (read-only, cross-process).
+- [x] Tests: WebAuthn verify (valid/wrong-challenge/unknown-cred/no-UV/wrong-origin), executor idempotency, dual-control quorum, full approval ceremony (**40 tests passing**). Software authenticator test helper in `tests/support/`.
+- [x] **DBOS/Postgres durability seam** (`acme/kernel/durable.py`), honestly infra-gated: `require_durable_backend` fails loudly rather than silently degrading. Concrete DBOS runner remains the one open Phase 1 item.
+
+**Phase 1 exit gate met (approval half):** no worker performs an external write except through the gateway, and every approved write binds to an immutable action revision (`tests/test_approval_e2e.py`). Remaining: swap the in-process runner/ledger for DBOS on Postgres (Phase 0/1 tests become its conformance suite).
+
+## Next
+
+- [ ] Concrete DBOS-on-Postgres `WorkflowRunner` behind the `durable.py` seam (requires Postgres + `pip install '.[durable]'`).
+- [ ] Phase 2: AutoSteam as the first CompanyPack; Codex App Server + OpenHands worker adapters; open-model baseline.
