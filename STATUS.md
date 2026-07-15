@@ -40,10 +40,18 @@
 
 **Phase 1 exit gate met:** no worker performs an external write except through the gateway; every approved write binds to an immutable action revision (`tests/test_approval_e2e.py`); and durable execution is proven across processes on Postgres (`tests/test_ledger_pg.py`, plus a 3-process CLI demo). **44 tests** pass with Postgres enabled (40 + 4 PG); 40 pass with PG skipped.
 
+- [x] **DBOS durable execution engine** (`acme/kernel/dbos_engine.py`): work-step pipelines run as DBOS steps keyed by the Acme task id — durable step **memoization** (a completed step never re-runs on resume), automatic step **retries**, and a durable **queue**. Behind the `durable.py` seam (`make_durable_engine`), gated on a Postgres DSN. Tested against Postgres (`tests/test_dbos.py`): memoization/resume, transient-retry recovery, durable queue. **47 tests** pass with PG+DBOS enabled.
+
 ## Next
 
-- [ ] Layer DBOS workflow primitives (durable queues/timers/leases, HA) on top of the Postgres ledger behind the `durable.py` seam.
 - [ ] Phase 2: AutoSteam as the first CompanyPack; Codex App Server + OpenHands worker adapters; open-model baseline.
+
+Run the full infra suite:
+```bash
+docker run -d --name acme-pg -e POSTGRES_PASSWORD=acme -e POSTGRES_DB=acme -p 5433:5432 postgres:16-alpine
+DSN=postgresql://postgres:acme@127.0.0.1:5433/acme
+ACME_TEST_DATABASE_URL=$DSN ACME_TEST_DBOS_URL=$DSN pytest
+```
 
 Run the Postgres conformance suite locally:
 ```bash

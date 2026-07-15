@@ -41,28 +41,24 @@ def dbos_available() -> bool:
     return True
 
 
-def require_durable_backend(dsn: str | None) -> None:
-    """Guard for enabling Postgres durability. Fails closed, never silently.
+def make_durable_engine(dsn: str | None, *, name: str = "acme"):
+    """Return a launched DBOS durable execution engine. Fails closed.
 
     Raises with actionable guidance if the optional dependency or a Postgres DSN
-    is missing. Phase 1 wires the concrete DBOS runner behind this check; see
+    is missing, rather than silently degrading to non-durable execution. See
     docs/adr/ADR-001-dbos-first-durability.md.
     """
     if not dbos_available():
         raise RuntimeError(
-            "Postgres durability requested but the 'dbos' package is not "
+            "Durable execution requested but the 'dbos' package is not "
             "installed. Install with: pip install '.[durable]'. Until then Acme "
-            "runs on the in-process SQLite-backed runner (crash-resume proven in "
-            "tests, but not production-HA)."
+            "runs on the in-process runner (crash-resume proven in tests, but "
+            "not production-HA)."
         )
     if not dsn:
         raise RuntimeError(
-            "Postgres durability requested but no DSN was provided "
+            "Durable execution requested but no DSN was provided "
             "(set ACME_DATABASE_URL). See ADR-001."
         )
-    raise NotImplementedError(
-        "DBOS-backed workflow primitives (queues/timers/leases/HA) are not wired "
-        "yet. The durable event log IS available now via "
-        "make_ledger('postgresql://...') — use that for cross-process durability; "
-        "the in-process runner drives it."
-    )
+    from acme.kernel.dbos_engine import DbosEngine
+    return DbosEngine(dsn, name=name)
