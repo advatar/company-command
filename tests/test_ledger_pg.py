@@ -25,7 +25,7 @@ def pg():
 
 
 def _co():
-    return "co_" + secrets.token_hex(8)
+    return "co-" + secrets.token_hex(8)
 
 
 def _ev(company, i):

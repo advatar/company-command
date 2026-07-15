@@ -63,3 +63,13 @@ def test_durable_queue_executes_enqueued_pipelines(dbos_engine):
     handle = dbos_engine.enqueue("queue-co", _uid("task-queue"), ["s"])
     result = handle.get_result()
     assert result == {"s": {"done": True}}
+
+
+def test_per_company_queue_is_concurrency_capped(dbos_engine):
+    dbos_engine.register("capped-co", {"s": lambda: {"ok": True}})
+    q = dbos_engine.company_queue("capped-co", concurrency=1)
+    assert q.name == "acme-co-capped-co"
+    # runs on the per-company queue and still completes
+    handle = dbos_engine.enqueue("capped-co", _uid("task-capped"), ["s"],
+                                 per_company=True)
+    assert handle.get_result() == {"s": {"ok": True}}

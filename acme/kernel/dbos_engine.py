@@ -68,12 +68,27 @@ def _run_pipeline(company: str, task_id: str, step_ids: list[str]) -> dict[str, 
 class DbosEngine:
     """Durable execution of a company's work-step pipeline on Postgres via DBOS."""
 
-    def __init__(self, dsn: str, *, name: str = "acme", quiet: bool = True):
+    def __init__(self, dsn: str, *, name: str = "acme", quiet: bool = True,
+                 queue_concurrency: int | None = None):
         if quiet:
             logging.getLogger("dbos").setLevel(logging.WARNING)
         DBOS(config=DBOSConfig(name=name, database_url=dsn))
         DBOS.launch()
+        # A default shared queue plus per-company queues with a concurrency cap,
+        # so one tenant cannot exhaust workers and starve others.
         self._queue = Queue("acme-pipeline")
+        self._default_concurrency = queue_concurrency
+        self._company_queues: dict[str, Queue] = {}
+
+    def company_queue(self, company: str, *, concurrency: int | None = None) -> Queue:
+        """Get (or create) a durable per-company queue with a concurrency cap."""
+        q = self._company_queues.get(company)
+        if q is None:
+            cap = concurrency if concurrency is not None else self._default_concurrency
+            q = Queue(f"acme-co-{company}",
+                      concurrency=cap) if cap else Queue(f"acme-co-{company}")
+            self._company_queues[company] = q
+        return q
 
     def register(self, company: str, skills: dict[str, Callable[[], dict]],
                  ledger_emit: Callable[[str, dict], None] | None = None) -> None:
@@ -101,10 +116,16 @@ class DbosEngine:
         with SetWorkflowID(key):
             return _one_step(key)
 
-    def enqueue(self, company: str, task_id: str, step_ids: list[str]):
-        """Durably enqueue a pipeline run; returns a DBOS workflow handle."""
+    def enqueue(self, company: str, task_id: str, step_ids: list[str],
+                *, per_company: bool = False):
+        """Durably enqueue a pipeline run; returns a DBOS workflow handle.
+
+        With ``per_company`` the run goes on the company's concurrency-capped
+        queue so a single tenant cannot starve others.
+        """
+        queue = self.company_queue(company) if per_company else self._queue
         with SetWorkflowID(task_id):
-            return self._queue.enqueue(_run_pipeline, company, task_id, step_ids)
+            return queue.enqueue(_run_pipeline, company, task_id, step_ids)
 
     def steps_of(self, task_id: str) -> list[str]:
         return [s.function_name for s in DBOS.list_workflow_steps(task_id)]

@@ -51,10 +51,25 @@ make run-durable       # durable AutoSteam (needs Postgres)
   Postgres log reconstructs task state and DBOS replays memoized steps. No
   duplicate effects (idempotent executor keyed by action digest).
 
-## Known production hardening still open
+## Hardening (implemented)
 
-- Rotate/limit DBOS worker concurrency and set queue limits per company.
-- OpenTelemetry/OpenInference export of gateway decisions and model calls
-  (event log remains the authoritative audit trail).
-- Multi-tenant isolation tests (string-prefix keying) before hosting untrusted,
-  customer-supplied CompanyPacks.
+- **Tenant safety:** company names must be safe slugs (`E-SLUG`); the event log,
+  approvals, and action digests are company-scoped (isolation tests in
+  `tests/test_isolation.py`, incl. shared-Postgres).
+- **Untrusted packs:** `load_pack(dir, trusted=False)` refuses to execute a
+  pack's `pack.py` (arbitrary code) — load customer-supplied manifests this way
+  and supply skills/handlers out-of-band. Only `trusted=True` runs pack code.
+- **DoS guards:** fan-out and verifier counts are capped at compile time
+  (`E-FANOUT`/`E-VERIFY`).
+- **Per-company queues:** `DbosEngine.company_queue(company, concurrency=...)` /
+  `enqueue(..., per_company=True)` — one tenant cannot starve others.
+- **Telemetry:** set `ACME_OTEL=1` (with `pip install '.[otel]'`) to export
+  gateway decisions and spans via OpenTelemetry; secrets are scrubbed and the
+  hash-chained event log remains the authoritative audit trail.
+
+## Still open
+
+- OpenInference span conventions for model calls; a reference collector wiring.
+- Row-level DB enforcement of tenant scoping (today isolation is by company key +
+  tests); per-tenant credentials/roles if hosting mutually-distrusting tenants.
+- Approval-store TTL sweeper for expired rows (currently filtered on read).

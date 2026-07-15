@@ -142,3 +142,22 @@ def test_functional_domain_annotation_accepted():
             a["domain"] = "money"
     r = _compile(d)
     assert r.ok, r.errors
+
+
+def test_unsafe_company_name_rejected():
+    d = _spec_dict()
+    d["metadata"]["name"] = "Robert'); DROP TABLE events;--"
+    r = _compile(d)
+    assert not r.ok
+    assert any(e.code == "E-SLUG" for e in r.errors)
+
+
+def test_fanout_over_cap_rejected():
+    d = _spec_dict()
+    d["workflows"].append({
+        "id": "wf-dos", "steps": [
+            {"id": "f", "type": "fanout", "runAs": "researcher",
+             "fanout": 9999, "aggregate": "majority"}]})
+    r = _compile(d)
+    assert not r.ok
+    assert any(e.code == "E-FANOUT" for e in r.errors)

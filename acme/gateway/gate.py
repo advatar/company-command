@@ -35,6 +35,7 @@ from acme.kernel.ledger import Ledger
 from acme.kernel.records import Event, EventType, ExecutionReceipt
 from acme.log import get_logger
 from acme.spec.models import Action
+from acme.telemetry import Telemetry, get_telemetry
 
 _log = get_logger(__name__)
 
@@ -67,12 +68,14 @@ class Gateway:
         bounds: dict[str, Bounds] | None = None,
         now: Callable[[], float] | None = None,
         approval_store=None,
+        telemetry: Telemetry | None = None,
     ):
         self._ledger = ledger
         self._actions = actions
         self._verifier = verifier or DenyByDefaultVerifier()
         self._bounds = bounds or {}
         self._now = now or time.time
+        self._tel = telemetry or get_telemetry()
         # Injectable so approvals can be persisted (Postgres) for cross-process
         # / HA approval; defaults to in-memory.
         self._approvals = approval_store or ApprovalStore(self._now)
@@ -248,9 +251,12 @@ class Gateway:
 
     def _receipt(self, intent: ActionIntent, decision: str, tier: Tier,
                  cap_id: str | None, reason: str) -> None:
-        # Log identifiers only — never the challenge, assertion, or capability.
+        # Log/telemeter identifiers only — never the challenge/assertion/capability.
         _log.info("gate decision=%s tier=%s action=%s digest=%s",
                   decision, tier.value, intent.action_id, intent.action_digest[:16])
+        self._tel.event("gate.decision", company=intent.company, decision=decision,
+                        tier=tier.value, action=intent.action_id,
+                        digest=intent.action_digest[:16])
         receipt = ExecutionReceipt(
             intent_digest=intent.action_digest,
             decision=decision,
