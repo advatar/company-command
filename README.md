@@ -7,8 +7,24 @@ gateway**, and pauses durably for **authenticated human approval** when policy
 requires it. Roles are bundles of skills, permissions, data scopes, model
 profiles, budgets, and escalation rules — not simulated employees.
 
+- **Run the backend:** [`docs/BACKEND.md`](docs/BACKEND.md) — install, `acme serve`, the HTTP API, and where state lives
+- **Architecture / ops:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/OPERATIONS.md`](docs/OPERATIONS.md)
 - **Plan:** [`STRATEGY.md`](STRATEGY.md) (canonical) · research: [`STRATEGY-RESEARCH-MEMO.md`](STRATEGY-RESEARCH-MEMO.md)
 - **Build:** [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) · [`docs/adr/`](docs/adr) · progress in [`STATUS.md`](STATUS.md)
+
+## The backend
+
+Acme *is* the backend: one FastAPI service (`acme serve`) over a Postgres event
+log. In-process for dev, durable (Postgres + DBOS) in production.
+
+```bash
+pip install -e ".[server,durable,dev]"
+acme serve                          # http://127.0.0.1:8080  (GET /health, /docs)
+# or: docker compose up --build     # Acme + Postgres, durable, on :8080
+```
+
+See [`docs/BACKEND.md`](docs/BACKEND.md) for the full API and the governed
+start → approve (WebAuthn) → execute lifecycle over HTTP.
 
 ## Status — Phase 0 + Phase 1 (governed effects + human approval)
 

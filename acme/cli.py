@@ -162,6 +162,20 @@ def cmd_eval(args) -> int:
     return 0
 
 
+def cmd_serve(args) -> int:
+    import uvicorn
+
+    from acme.config import Settings
+    settings = Settings.from_env()
+    print(f"acme serve on {args.host}:{args.port} "
+          f"(durable={settings.durable}, companies={args.companies})")
+    import os
+    os.environ.setdefault("ACME_COMPANIES_DIR", args.companies)
+    uvicorn.run("acme.server.app:create_app", factory=True,
+                host=args.host, port=args.port, log_level="info")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="acme", description="Acme company control plane")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -198,6 +212,13 @@ def build_parser() -> argparse.ArgumentParser:
     pe.add_argument("--baseline", required=True, help="single-agent workflow id")
     pe.add_argument("--variant", required=True, help="multi-agent workflow id")
     pe.set_defaults(func=cmd_eval)
+
+    psv = sub.add_parser("serve", help="run the Acme HTTP API backend")
+    psv.add_argument("--host", default="127.0.0.1")
+    psv.add_argument("--port", type=int, default=8080)
+    psv.add_argument("--companies", default="companies",
+                     help="directory of CompanyPacks to load")
+    psv.set_defaults(func=cmd_serve)
     return p
 
 

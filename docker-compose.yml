@@ -1,0 +1,33 @@
+# Acme backend + Postgres. `docker compose up` gives a durable engine at :8080.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: acme
+      POSTGRES_DB: acme
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - acme-pgdata:/var/lib/postgresql/data
+
+  acme:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Presence of this DSN flips Acme into durable mode (Postgres + DBOS).
+      ACME_DATABASE_URL: postgresql://postgres:acme@postgres:5432/acme
+      ACME_RP_ID: localhost
+      ACME_RP_ORIGIN: https://localhost
+      ACME_COMPANIES_DIR: /app/companies
+    ports:
+      - "8080:8080"
+
+volumes:
+  acme-pgdata:
