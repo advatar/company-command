@@ -81,9 +81,20 @@
 
 **88 tests** pass with Postgres+DBOS; 75 pass (13 infra skipped) with none.
 
+## HTTP backend (branch `acme-backend`)
+
+- [x] **CompanyService** (`acme/server/service.py`): loads CompanyPacks from a dir; holds the shared ledger, durable DBOS engine, and shared credential/approval stores; per-company gateway/executor/runner. Task status reconstructs from the event log.
+- [x] **FastAPI API** (`acme/server/app.py`) + **`acme serve`**: health, companies, start/get task, approval inbox, WebAuthn enroll + approve ceremony, eval, audit events. OpenAPI docs at `/docs`.
+- [x] **Deployment**: `Dockerfile` + `docker-compose.yml` (Acme + Postgres, durable on `:8080`); `[server]` optional deps.
+- [x] **Docs**: `docs/BACKEND.md` — install, run, API reference, and "where the backend lives".
+- [x] Server tests (`tests/test_server.py`): full governed lifecycle over HTTP (start → enroll passkey → authenticate → authorize → SUCCEEDED) via TestClient + software authenticator; eval + audit endpoints. Live `acme serve` smoke-tested.
+
+**93 tests** pass with Postgres+DBOS; 80 pass (13 infra skipped) with none. Acme is now a runnable backend, not just a CLI/library.
+
 ## Next
 
 - [ ] Remaining items in docs/OPERATIONS.md "Still open" (OpenInference for model calls, row-level DB tenant enforcement, approval-TTL sweeper).
+- [ ] Persist enrollment-in-progress challenges (multi-instance) + a browser UI for the approval ceremony.
 - [ ] Optional: run fan-out candidates as durable DBOS steps; delegation-chain capabilities.
 
 Run the full infra suite:

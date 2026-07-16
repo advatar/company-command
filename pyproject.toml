@@ -10,7 +10,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "httpx>=0.27"]
+# HTTP API backend (`acme serve`).
+server = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 # Postgres-backed durable runtime. psycopg powers the durable event ledger
 # (acme/kernel/ledger_pg.py); dbos is for the workflow primitives layered on top.
 durable = ["psycopg[binary]>=3", "dbos>=2"]
