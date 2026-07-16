@@ -152,6 +152,15 @@ def test_unsafe_company_name_rejected():
     assert any(e.code == "E-SLUG" for e in r.errors)
 
 
+def test_trailing_newline_company_name_rejected():
+    # `$` would let this pass; the \Z anchor must reject it.
+    d = _spec_dict()
+    d["metadata"]["name"] = "valid-co\n"
+    r = _compile(d)
+    assert not r.ok
+    assert any(e.code == "E-SLUG" for e in r.errors)
+
+
 def test_fanout_over_cap_rejected():
     d = _spec_dict()
     d["workflows"].append({
