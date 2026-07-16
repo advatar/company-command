@@ -23,7 +23,9 @@ SUPPORTED_API_VERSIONS = {"acme.dev/v1alpha1"}
 
 # A company name becomes a tenant key / Postgres prefix; constrain it to a safe
 # slug so a manifest cannot inject into identifiers or collide across tenants.
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+# Anchor with \Z, not $ — in Python `$` also matches before a trailing newline,
+# which would let "valid-co\n" pass and weaken the tenant-key guarantee.
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
 
 # Resource-exhaustion guards: a malicious/careless manifest must not be able to
 # request unbounded parallelism.
