@@ -1,6 +1,6 @@
 """DBOS durable execution engine tests.
 
-Run only when ACME_TEST_DBOS_URL points at a reachable Postgres (DBOS creates its
+Run only when COMCMD_TEST_DBOS_URL points at a reachable Postgres (DBOS creates its
 own system database alongside). Skipped otherwise so the default run needs no
 database. DBOS is a process-wide singleton, so these tests share one engine.
 """
@@ -10,8 +10,8 @@ import secrets
 
 import pytest
 
-DSN = os.environ.get("ACME_TEST_DBOS_URL")
-pytestmark = pytest.mark.skipif(not DSN, reason="ACME_TEST_DBOS_URL not set")
+DSN = os.environ.get("COMCMD_TEST_DBOS_URL")
+pytestmark = pytest.mark.skipif(not DSN, reason="COMCMD_TEST_DBOS_URL not set")
 
 
 def _uid(prefix):
@@ -68,7 +68,7 @@ def test_durable_queue_executes_enqueued_pipelines(dbos_engine):
 def test_per_company_queue_is_concurrency_capped(dbos_engine):
     dbos_engine.register("capped-co", {"s": lambda: {"ok": True}})
     q = dbos_engine.company_queue("capped-co", concurrency=1)
-    assert q.name == "acme-co-capped-co"
+    assert q.name == "comcmd-co-capped-co"
     # runs on the per-company queue and still completes
     handle = dbos_engine.enqueue("capped-co", _uid("task-capped"), ["s"],
                                  per_company=True)

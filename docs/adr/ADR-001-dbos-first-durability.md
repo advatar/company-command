@@ -1,14 +1,14 @@
 # ADR-001: DBOS-first durability, Temporal as a graduation path
 
 **Status:** Accepted · 2026-07-15
-**Context:** Acme Phase 0/1 · relates to Acme issue #1, `STRATEGY.md` §5.1, §11
+**Context:** Company Command Phase 0/1 · relates to Company Command issue #1, `STRATEGY.md` §5.1, §11
 
 ## Context
 
-Acme's design principle #6 is *durability before autonomy*: every long-running
+Company Command's design principle #6 is *durability before autonomy*: every long-running
 task, retry, timer, human wait, and cancellation must survive a process restart.
 Phase 0 satisfies this with an in-process runner over an append-only,
-hash-chained event log (`acme.kernel.ledger.Ledger`, `acme.kernel.workflow`).
+hash-chained event log (`comcmd.kernel.ledger.Ledger`, `comcmd.kernel.workflow`).
 That is enough to prove the crash-resume property in tests, but it is not a
 production durability runtime: it has no queues, no distributed leases, no timer
 service, and no HA story.
@@ -25,11 +25,11 @@ Rationale:
 
 - DBOS's open-source library supplies durable execution, queues, events, and
   human-wait (send/receive) primitives directly on Postgres, which is already
-  Acme's source of truth. This minimizes moving parts for Phase 1.
-- Acme's kernel already isolates the durable seam behind small interfaces
+  Company Command's source of truth. This minimizes moving parts for Phase 1.
+- Company Command's kernel already isolates the durable seam behind small interfaces
   (`WorkflowRunner`, `Ledger`). DBOS implements those; the compiler, gateway,
   workers, and model layer do not change.
-- Temporal is the stronger choice only when Acme needs independent services,
+- Temporal is the stronger choice only when Company Command needs independent services,
   multiple languages, or operational guarantees beyond a single Postgres — a
   Phase 3 concern at the earliest.
 
@@ -45,7 +45,7 @@ not merely anticipated:
    long histories) that DBOS + Conductor cannot meet at acceptable cost.
 
 Workflow histories are **not portable** between the engines. A migration drains
-old runs to completion and starts new executions from Acme business state
+old runs to completion and starts new executions from Company Command business state
 (records + event log), never by importing engine history. Do **not** run DBOS
 and Temporal as competing owners of the same workflow.
 

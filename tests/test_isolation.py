@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from acme.gateway.intents import ActionIntent
-from acme.kernel.ledger import Ledger
-from acme.kernel.records import Event, EventType
-from acme.pack import UntrustedPackError, load_pack
+from comcmd.gateway.intents import ActionIntent
+from comcmd.kernel.ledger import Ledger
+from comcmd.kernel.records import Event, EventType
+from comcmd.pack import UntrustedPackError, load_pack
 
 AUTO_STEAM = Path(__file__).resolve().parents[1] / "companies" / "auto-steam"
 
@@ -54,14 +54,14 @@ def test_action_digest_is_company_scoped():
 
 # -- tenant isolation (shared Postgres) -------------------------------------
 
-DSN = os.environ.get("ACME_TEST_DATABASE_URL")
+DSN = os.environ.get("COMCMD_TEST_DATABASE_URL")
 
 
-@pytest.mark.skipif(not DSN, reason="ACME_TEST_DATABASE_URL not set")
+@pytest.mark.skipif(not DSN, reason="COMCMD_TEST_DATABASE_URL not set")
 def test_shared_postgres_ledger_isolates_companies():
     import secrets
 
-    from acme.kernel.ledger_pg import PostgresLedger
+    from comcmd.kernel.ledger_pg import PostgresLedger
     led = PostgresLedger(DSN)
     a, b = "ten-" + secrets.token_hex(4), "ten-" + secrets.token_hex(4)
     for i in range(4):

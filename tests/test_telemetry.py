@@ -1,8 +1,8 @@
-from acme.gateway.gate import Gateway
-from acme.gateway.intents import ActionIntent
-from acme.kernel.ledger import Ledger
-from acme.spec.models import Action, Approval, Risk
-from acme.telemetry import InMemoryTelemetry, NullTelemetry, _scrub
+from comcmd.gateway.gate import Gateway
+from comcmd.gateway.intents import ActionIntent
+from comcmd.kernel.ledger import Ledger
+from comcmd.spec.models import Action, Approval, Risk
+from comcmd.telemetry import InMemoryTelemetry, NullTelemetry, _scrub
 
 
 def _intent(action_id, tool, **kw):

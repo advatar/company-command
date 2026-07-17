@@ -1,9 +1,9 @@
-# Acme — Implementation Plan
+# Company Command — Implementation Plan
 
 **Companion to `STRATEGY.md`.** This plan turns the strategy into concrete, buildable deliverables. It is deliberately Phase-0-heavy: Phase 0 is what we build now; later phases are scoped enough to sequence but not yet detailed to the file.
 
 **Evidence cutoff / date:** 2026-07-15
-**Tracking:** Acme issue #1 · branch `acme-phase0-bootstrap`
+**Tracking:** Company Command issue #1 · branch `comcmd-phase0-bootstrap`
 
 ---
 
@@ -49,9 +49,9 @@ CompanySpec (yaml) ──▶ Compiler ──▶ CompanyRevision (immutable)
 ## 2. Repository layout (Phase 0)
 
 ```
-Acme/
+Company Command/
   pyproject.toml
-  acme/
+  comcmd/
     __init__.py
     ids.py                 # deterministic id + canonical JSON + digest helpers
     spec/
@@ -76,7 +76,7 @@ Acme/
     models/
       profiles.py          # ModelProfile + registry
       backends.py          # Backend protocol; OfflineDeferBackend; OpenAICompatBackend
-    cli.py                 # acme compile | run | inspect | schema
+    cli.py                 # comcmd compile | run | inspect | schema
   companies/
     example-studio/company.yaml
   schemas/
@@ -94,12 +94,12 @@ Acme/
 
 | # | Deliverable | Done when |
 |---|---|---|
-| 0.1 | CompanySpec models + JSON Schema + example | `acme schema` writes `schemas/company.schema.json`; `example-studio` loads and validates |
+| 0.1 | CompanySpec models + JSON Schema + example | `comcmd schema` writes `schemas/company.schema.json`; `example-studio` loads and validates |
 | 0.2 | Compiler | Rejects all negative cases in §4; produces a content-addressed immutable `CompanyRevision` |
 | 0.3 | Event ledger | Append-only, per-company hash chain; `verify_chain()` detects any tamper/truncation |
 | 0.4 | Gateway (Mandamus-Lite) | Default-deny; A0/A1 auto; A2+ → `WAITING_FOR_HUMAN`; capability grants scoped+single-use+TTL; every decision emits a receipt |
 | 0.5 | Workflow runner + native worker + model profiles | A deterministic workflow runs a read-only task end-to-end; resumes from the ledger after a simulated crash without duplicating effects |
-| 0.6 | CLI | `acme compile`, `acme run`, `acme inspect`, `acme schema` all work on the example |
+| 0.6 | CLI | `comcmd compile`, `comcmd run`, `comcmd inspect`, `comcmd schema` all work on the example |
 | 0.7 | Tests + ADR-001 | `pytest` green; ADR-001 records DBOS-first + Temporal graduation triggers |
 
 **Phase 0 exit gate (from STRATEGY.md):** *a process can crash at every step and resume without duplicating a durable effect.* We demonstrate this with a workflow test that replays from the event log and asserts idempotency by digest.

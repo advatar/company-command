@@ -10,8 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from acme.config import Settings
-from acme.server.app import create_app
+from comcmd.config import Settings
+from comcmd.server.app import create_app
 from tests.support.authenticator import SoftAuthenticator
 
 COMPANIES = Path(__file__).resolve().parents[1] / "companies"

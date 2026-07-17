@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from acme.models.backends import OfflineDeferBackend, OpenAICompatBackend
+from comcmd.models.backends import OfflineDeferBackend, OpenAICompatBackend
 
 
 class _Handler(BaseHTTPRequestHandler):

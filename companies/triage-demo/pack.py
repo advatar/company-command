@@ -3,13 +3,13 @@
 One deterministic classifier skill, index-driven so a fan-out runs three
 different heuristics. The single-agent baseline uses heuristic 0 alone (it gets
 several tickets wrong); the panel takes the majority of all three (it gets them
-right). `acme eval` should therefore PROMOTE the panel. Verifiers apply distinct
+right). `comcmd eval` should therefore PROMOTE the panel. Verifiers apply distinct
 lenses and must reach quorum before a label is accepted.
 """
 
 from __future__ import annotations
 
-from acme.workers.api import TaskEnvelope, WorkerResult
+from comcmd.workers.api import TaskEnvelope, WorkerResult
 
 CLASSES = {"bug", "feature", "question"}
 

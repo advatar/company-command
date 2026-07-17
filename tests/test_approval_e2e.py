@@ -3,23 +3,23 @@ from pathlib import Path
 
 import pytest
 
-from acme.compile.compiler import compile_company
-from acme.gateway.enrollment import CredentialStore
-from acme.gateway.gate import Gateway
-from acme.gateway.intents import ActionIntent
-from acme.gateway.webauthn_verifier import WebAuthnVerifier
-from acme.kernel.executor import Executor
-from acme.kernel.ledger import Ledger
-from acme.kernel.records import TaskState
-from acme.kernel.workflow import WorkflowRunner
-from acme.spec.loader import load_company_spec
-from acme.workers.api import TaskEnvelope, WorkerResult
-from acme.workers.native import NativeWorker
+from comcmd.compile.compiler import compile_company
+from comcmd.gateway.enrollment import CredentialStore
+from comcmd.gateway.gate import Gateway
+from comcmd.gateway.intents import ActionIntent
+from comcmd.gateway.webauthn_verifier import WebAuthnVerifier
+from comcmd.kernel.executor import Executor
+from comcmd.kernel.ledger import Ledger
+from comcmd.kernel.records import TaskState
+from comcmd.kernel.workflow import WorkflowRunner
+from comcmd.spec.loader import load_company_spec
+from comcmd.workers.api import TaskEnvelope, WorkerResult
+from comcmd.workers.native import NativeWorker
 from tests.support.authenticator import SoftAuthenticator
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "companies" / "example-studio"
-RP_ID = "acme.local"
-ORIGIN = "https://acme.local"
+RP_ID = "comcmd.local"
+ORIGIN = "https://comcmd.local"
 
 
 def _enroll(store, principal, user_verified=True):

@@ -590,7 +590,7 @@
       "type": "array"
     },
     "apiVersion": {
-      "default": "acme.dev/v1alpha1",
+      "default": "comcmd.dev/v1alpha1",
       "title": "Apiversion",
       "type": "string"
     },
@@ -667,6 +667,6 @@
     "metadata",
     "mission"
   ],
-  "title": "Acme CompanySpec",
+  "title": "Company Command CompanySpec",
   "type": "object"
 }

@@ -1,6 +1,6 @@
 import pytest
 
-from acme.kernel import durable
+from comcmd.kernel import durable
 
 
 def test_durable_engine_requires_dsn():

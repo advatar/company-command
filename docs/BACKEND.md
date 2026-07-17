@@ -1,30 +1,30 @@
-# Acme backend — where it lives and how to use it
+# Company Command backend — where it lives and how to use it
 
 ## Where the backend lives
 
-**Acme _is_ the backend.** It is a single long-running Python service — a FastAPI
-app (`acme/server/app.py`) wrapping a `CompanyService` (`acme/server/service.py`)
-— that you run with `acme serve`. There is no separate server to install: the
+**Company Command _is_ the backend.** It is a single long-running Python service — a FastAPI
+app (`comcmd/server/app.py`) wrapping a `CompanyService` (`comcmd/server/service.py`)
+— that you run with `comcmd serve`. There is no separate server to install: the
 same package that provides the CLI and library provides the HTTP backend.
 
 Two deployment shapes:
 
-- **In-process (dev / single node):** `acme serve`. State lives in memory / a
+- **In-process (dev / single node):** `comcmd serve`. State lives in memory / a
   local SQLite event log. No database required.
-- **Durable (production):** set `ACME_DATABASE_URL` to a Postgres DSN. The event
+- **Durable (production):** set `COMCMD_DATABASE_URL` to a Postgres DSN. The event
   log, approvals, and credentials move to Postgres; work steps run as durable
   DBOS steps. DBOS also creates its own system database (`<db>_dbos_sys`)
   alongside yours. Run N replicas against one Postgres — they share the ledger
   and an approval opened on one is completable on another.
 
-So the backend "lives" wherever you run the `acme` process; its **durable state
+So the backend "lives" wherever you run the `comcmd` process; its **durable state
 lives in Postgres**. Companies (the business logic) live as **CompanyPacks** in a
-directory (`ACME_COMPANIES_DIR`, default `./companies`) that the service loads at
+directory (`COMCMD_COMPANIES_DIR`, default `./companies`) that the service loads at
 startup.
 
 ```
                  ┌───────────────────────────┐
-  HTTP client →  │  acme serve (FastAPI)      │
+  HTTP client →  │  comcmd serve (FastAPI)      │
   (UI / curl)    │  CompanyService            │
                  │   ├─ per-company gateway,  │
                  │   │   executor, runner     │
@@ -51,18 +51,19 @@ pip install -e ".[server,durable,dev]"     # server = FastAPI; durable = Postgre
 
 ### In-process
 ```bash
-acme serve --host 0.0.0.0 --port 8080 --companies companies
+comcmd serve --host 0.0.0.0 --port 8080 --companies companies
 curl localhost:8080/health
 ```
 
-### Durable (Docker Compose — Acme + Postgres)
+### Durable (Docker Compose — Company Command + Postgres)
 ```bash
 docker compose up --build          # API on :8080, Postgres on :5433
 ```
 Or point a local process at Postgres:
 ```bash
-export ACME_DATABASE_URL=postgresql://postgres:acme@127.0.0.1:5433/acme
-acme serve
+export COMCMD_DATABASE_URL=postgresql://postgres:comcmd@127.0.0.1:5433/comcmd
+export COMCMD_API_TOKEN="replace-with-a-long-random-operator-token"
+comcmd serve
 ```
 
 ## HTTP API
@@ -110,13 +111,20 @@ flow; `tests/test_server.py` drives it headlessly with a software authenticator.
 
 ## Configuration (env)
 
-See `docs/OPERATIONS.md`. Key ones: `ACME_DATABASE_URL` (durable on/off),
-`ACME_COMPANIES_DIR`, `ACME_RP_ID` / `ACME_RP_ORIGIN` (WebAuthn — set these to
-your real domain in production), `ACME_MODEL_URL` (open-model endpoint).
+All control-plane endpoints except `/health` accept a bearer token when
+`COMCMD_API_TOKEN` is set; use `Authorization: Bearer $COMCMD_API_TOKEN` from
+operators or a UI. Set it for every network-exposed deployment. Approval
+requests include the canonical significant operation payload, including the
+original task inputs and upstream artifacts, so the approval is bound to the
+exact effect being authorized.
+
+See `docs/OPERATIONS.md`. Key ones: `COMCMD_DATABASE_URL` (durable on/off),
+`COMCMD_COMPANIES_DIR`, `COMCMD_RP_ID` / `COMCMD_RP_ORIGIN` (WebAuthn — set these to
+your real domain in production), `COMCMD_MODEL_URL` (open-model endpoint).
 
 ## Adding a company
 
-Drop a directory in `ACME_COMPANIES_DIR`:
+Drop a directory in `COMCMD_COMPANIES_DIR`:
 
 ```
 companies/my-co/

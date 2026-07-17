@@ -2,21 +2,21 @@
 
 A second company, unrelated to example-studio, runs end-to-end on the same
 kernel/gateway/executor purely from `companies/auto-steam/` (declared manifest +
-deterministic domain skills). Nothing about the studio lives in acme/*.
+deterministic domain skills). Nothing about the studio lives in comcmd/*.
 """
 
 import secrets
 from pathlib import Path
 
-from acme.gateway.enrollment import CredentialStore
-from acme.gateway.webauthn_verifier import WebAuthnVerifier
-from acme.kernel.records import TaskState
-from acme.pack import build_runner, load_pack
+from comcmd.gateway.enrollment import CredentialStore
+from comcmd.gateway.webauthn_verifier import WebAuthnVerifier
+from comcmd.kernel.records import TaskState
+from comcmd.pack import build_runner, load_pack
 from tests.support.authenticator import SoftAuthenticator
 
 PACK_DIR = Path(__file__).resolve().parents[1] / "companies" / "auto-steam"
-RP_ID = "acme.local"
-ORIGIN = "https://acme.local"
+RP_ID = "comcmd.local"
+ORIGIN = "https://comcmd.local"
 
 
 def _enroll(store, principal):
@@ -29,7 +29,7 @@ def _enroll(store, principal):
 
 def test_autosteam_compiles_and_is_distinct_from_example():
     pack = load_pack(PACK_DIR)
-    from acme.compile.compiler import compile_company
+    from comcmd.compile.compiler import compile_company
     rev = compile_company(pack.spec).raise_if_failed()
     assert rev.company_name == "auto-steam"
     # a genuinely different roster/workflow than example-studio
@@ -68,7 +68,7 @@ def test_autosteam_release_publishes_once_after_passkey_approval():
     assert ctx.ledger.verify_chain(ctx.revision.company_name)
 
     # the steam.publish effect happened exactly once, only via the gateway
-    from acme.kernel.records import EventType
+    from comcmd.kernel.records import EventType
     executed = [e.event for e in ctx.ledger.read(ctx.revision.company_name)
                 if e.event.type == EventType.execution_receipt
                 and e.event.payload.get("executed") is True]

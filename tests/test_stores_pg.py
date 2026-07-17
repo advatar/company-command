@@ -2,7 +2,7 @@
 
 Two independent Gateway instances (standing in for two processes/nodes) share
 the durable stores: instance A opens the approval, instance B completes it with
-a WebAuthn assertion. Gated on ACME_TEST_DATABASE_URL.
+a WebAuthn assertion. Gated on COMCMD_TEST_DATABASE_URL.
 """
 
 import os
@@ -10,23 +10,23 @@ import secrets
 
 import pytest
 
-from acme.kernel.ledger import Ledger
-from acme.spec.models import Action, Approval, Risk
+from comcmd.kernel.ledger import Ledger
+from comcmd.spec.models import Action, Approval, Risk
 
-DSN = os.environ.get("ACME_TEST_DATABASE_URL")
-pytestmark = pytest.mark.skipif(not DSN, reason="ACME_TEST_DATABASE_URL not set")
+DSN = os.environ.get("COMCMD_TEST_DATABASE_URL")
+pytestmark = pytest.mark.skipif(not DSN, reason="COMCMD_TEST_DATABASE_URL not set")
 
-RP_ID = "acme.local"
-ORIGIN = "https://acme.local"
+RP_ID = "comcmd.local"
+ORIGIN = "https://comcmd.local"
 
 
 @pytest.fixture
 def stores():
-    from acme.gateway.stores_pg import PgApprovalStore, PgCredentialStore
+    from comcmd.gateway.stores_pg import PgApprovalStore, PgCredentialStore
     suffix = secrets.token_hex(4)
-    creds = PgCredentialStore(DSN, table=f"acme_credentials_{suffix}")
-    appr_a = PgApprovalStore(DSN, table=f"acme_approvals_{suffix}")
-    appr_b = PgApprovalStore(DSN, table=f"acme_approvals_{suffix}")
+    creds = PgCredentialStore(DSN, table=f"comcmd_credentials_{suffix}")
+    appr_a = PgApprovalStore(DSN, table=f"comcmd_approvals_{suffix}")
+    appr_b = PgApprovalStore(DSN, table=f"comcmd_approvals_{suffix}")
     yield creds, appr_a, appr_b
     creds.close(); appr_a.close(); appr_b.close()
 
@@ -39,7 +39,7 @@ def _action():
 
 
 def test_credential_persists_and_verifies(stores):
-    from acme.gateway.webauthn_verifier import WebAuthnVerifier
+    from comcmd.gateway.webauthn_verifier import WebAuthnVerifier
     from tests.support.authenticator import SoftAuthenticator
     creds, _, _ = stores
     dev = SoftAuthenticator(RP_ID, ORIGIN)
@@ -55,9 +55,9 @@ def test_credential_persists_and_verifies(stores):
 
 
 def test_approval_opened_on_A_completed_on_B(stores):
-    from acme.gateway.gate import Gateway
-    from acme.gateway.intents import ActionIntent
-    from acme.gateway.webauthn_verifier import WebAuthnVerifier
+    from comcmd.gateway.gate import Gateway
+    from comcmd.gateway.intents import ActionIntent
+    from comcmd.gateway.webauthn_verifier import WebAuthnVerifier
     from tests.support.authenticator import SoftAuthenticator
 
     creds, appr_a, appr_b = stores

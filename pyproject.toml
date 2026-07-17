@@ -1,7 +1,16 @@
 [project]
-name = "acme"
-version = "0.0.1"
-description = "Acme — a small, model-neutral autonomous-company control plane"
+name = "comcmd"
+version = "0.1.0"
+description = "Company Command — a governed control plane for AI-run companies"
+authors = [{name = "Advatar"}]
+keywords = ["agents", "autonomous-company", "workflow", "governance", "approvals"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+]
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2",
@@ -11,23 +20,23 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27"]
-# HTTP API backend (`acme serve`).
+# HTTP API backend (`comcmd serve`).
 server = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 # Postgres-backed durable runtime. psycopg powers the durable event ledger
-# (acme/kernel/ledger_pg.py); dbos is for the workflow primitives layered on top.
+# (comcmd/kernel/ledger_pg.py); dbos is for the workflow primitives layered on top.
 durable = ["psycopg[binary]>=3", "dbos>=2"]
-# Optional OpenTelemetry export of gateway decisions / spans (ACME_OTEL=1).
+# Optional OpenTelemetry export of gateway decisions / spans (COMCMD_OTEL=1).
 otel = ["opentelemetry-api>=1.20"]
 
 [project.scripts]
-acme = "acme.cli:main"
+comcmd = "comcmd.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["acme*"]
+include = ["comcmd*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

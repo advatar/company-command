@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from acme.kernel.aggregate import aggregate
-from acme.kernel.records import TaskState
-from acme.pack import build_runner, load_pack
+from comcmd.kernel.aggregate import aggregate
+from comcmd.kernel.records import TaskState
+from comcmd.pack import build_runner, load_pack
 
 TRIAGE = Path(__file__).resolve().parents[1] / "companies" / "triage-demo"
 
@@ -57,7 +57,7 @@ def test_verify_escalates_on_three_way_split():
 # -- the evaluation gate ----------------------------------------------------
 
 def test_eval_promotes_panel_over_single():
-    from acme.eval.harness import evaluate
+    from comcmd.eval.harness import evaluate
     pack = load_pack(TRIAGE)
     report = evaluate(pack.spec, baseline="triage-single", variant="triage-panel",
                       scenarios=pack.scenarios, skills=pack.skills)
@@ -67,7 +67,7 @@ def test_eval_promotes_panel_over_single():
 
 
 def test_eval_keeps_baseline_when_variant_does_not_beat_it():
-    from acme.eval.harness import evaluate
+    from comcmd.eval.harness import evaluate
     pack = load_pack(TRIAGE)
     # comparing the baseline against ITSELF: no success gain -> do not promote.
     report = evaluate(pack.spec, baseline="triage-single", variant="triage-single",

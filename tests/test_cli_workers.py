@@ -1,5 +1,5 @@
-from acme.workers.api import TaskEnvelope
-from acme.workers.cli_agents import CodexWorker, OpenHandsWorker, _extract_json
+from comcmd.workers.api import TaskEnvelope
+from comcmd.workers.cli_agents import CodexWorker, OpenHandsWorker, _extract_json
 
 
 def _env():

@@ -1,26 +1,30 @@
-# Acme
+# Company Command
 
-A small, model-neutral **autonomous-company control plane**. Acme compiles a
+> Command your company of AI agents.
+
+Company Command is distributed as `comcmd`.
+
+A small, model-neutral **autonomous-company control plane**. Company Command compiles a
 declarative `CompanySpec` into durable work, runs that work through replaceable
 agent workers, mediates every side effect through a **default-deny capability
 gateway**, and pauses durably for **authenticated human approval** when policy
 requires it. Roles are bundles of skills, permissions, data scopes, model
 profiles, budgets, and escalation rules — not simulated employees.
 
-- **Run the backend:** [`docs/BACKEND.md`](docs/BACKEND.md) — install, `acme serve`, the HTTP API, and where state lives
+- **Run the backend:** [`docs/BACKEND.md`](docs/BACKEND.md) — install, `comcmd serve`, the HTTP API, and where state lives
 - **Architecture / ops:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/OPERATIONS.md`](docs/OPERATIONS.md)
 - **Plan:** [`STRATEGY.md`](STRATEGY.md) (canonical) · research: [`STRATEGY-RESEARCH-MEMO.md`](STRATEGY-RESEARCH-MEMO.md)
 - **Build:** [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) · [`docs/adr/`](docs/adr) · progress in [`STATUS.md`](STATUS.md)
 
 ## The backend
 
-Acme *is* the backend: one FastAPI service (`acme serve`) over a Postgres event
+Company Command *is* the backend: one FastAPI service (`comcmd serve`) over a Postgres event
 log. In-process for dev, durable (Postgres + DBOS) in production.
 
 ```bash
 pip install -e ".[server,durable,dev]"
-acme serve                          # http://127.0.0.1:8080  (GET /health, /docs)
-# or: docker compose up --build     # Acme + Postgres, durable, on :8080
+comcmd serve                          # http://127.0.0.1:8080  (GET /health, /docs)
+# or: docker compose up --build     # Company Command + Postgres, durable, on :8080
 ```
 
 See [`docs/BACKEND.md`](docs/BACKEND.md) for the full API and the governed
@@ -30,24 +34,24 @@ start → approve (WebAuthn) → execute lifecycle over HTTP.
 
 Implemented and tested (**40 tests**):
 
-- `CompanySpec` models + JSON Schema (`acme/spec`, `acme schema`)
-- Manifest **compiler** with default-deny validation (`acme/compile`)
-- Append-only **hash-chained event ledger** (`acme/kernel/ledger.py`)
+- `CompanySpec` models + JSON Schema (`comcmd/spec`, `comcmd schema`)
+- Manifest **compiler** with default-deny validation (`comcmd/compile`)
+- Append-only **hash-chained event ledger** (`comcmd/kernel/ledger.py`)
 - Default-deny **capability gateway** ("Mandamus-Lite") with A0–A4 assurance
-  tiers, bounded-auto, scoped single-use capabilities, receipts (`acme/gateway`)
-- **WebAuthn approval** (`acme/gateway/webauthn_verifier.py`, `enrollment.py`,
+  tiers, bounded-auto, scoped single-use capabilities, receipts (`comcmd/gateway`)
+- **WebAuthn approval** (`comcmd/gateway/webauthn_verifier.py`, `enrollment.py`,
   `approvals.py`): assertion bound 1:1 to the immutable action digest, UV
   required, phishing-resistant origin binding, **distinct-approver quorum**
   (A3 dual control). Deny-by-default when unconfigured.
-- **Idempotent executor** (`acme/kernel/executor.py`): an authorized effect
+- **Idempotent executor** (`comcmd/kernel/executor.py`): an authorized effect
   runs exactly once; replay after a crash re-runs nothing.
 - Deterministic **workflow runner** with crash-resume and an approval/resume
-  path (`acme/kernel/workflow.py`)
+  path (`comcmd/kernel/workflow.py`)
 - **Worker API** + bounded native worker; **model profiles** with an
-  offline-defer backend and an OpenAI-compatible backend (`acme/workers`, `acme/models`)
+  offline-defer backend and an OpenAI-compatible backend (`comcmd/workers`, `comcmd/models`)
 - Operator **CLI**: `compile`, `run`, `inspect`, `schema`, `approvals`
 
-- **Postgres durable ledger** (`acme/kernel/ledger_pg.py`, `make_ledger`):
+- **Postgres durable ledger** (`comcmd/kernel/ledger_pg.py`, `make_ledger`):
   the hash-chained event log on Postgres with per-company advisory-locked
   atomic appends, so crash-resume is durable **across processes/machines**. The
   runner and CLI run unchanged against it.
@@ -57,7 +61,7 @@ worker writes except through the gateway, every approved write bound to an
 immutable action revision (`tests/test_approval_e2e.py`), and durable execution
 across processes on Postgres (`tests/test_ledger_pg.py`). Remaining: DBOS
 workflow primitives (queues/timers/leases/HA) layered on the Postgres ledger,
-honestly gated in `acme/kernel/durable.py` (see
+honestly gated in `comcmd/kernel/durable.py` (see
 [ADR-001](docs/adr/ADR-001-dbos-first-durability.md)).
 
 ## Quickstart
@@ -67,12 +71,12 @@ python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"          # or: pip install pydantic pyyaml pytest
 
 pytest                            # 56 tests (63 with Postgres+DBOS enabled)
-python -m acme.cli compile companies/example-studio
-python -m acme.cli run      companies/auto-steam ship-title      # a second, different company
-python -m acme.cli run      companies/example-studio validate-product --ledger acme.sqlite
-python -m acme.cli approvals acme.sqlite example-studio
-python -m acme.cli schema -o schemas/company.schema.json
-python -m acme.cli eval companies/triage-demo --baseline triage-single --variant triage-panel
+python -m comcmd.cli compile companies/example-studio
+python -m comcmd.cli run      companies/auto-steam ship-title      # a second, different company
+python -m comcmd.cli run      companies/example-studio validate-product --ledger comcmd.sqlite
+python -m comcmd.cli approvals comcmd.sqlite example-studio
+python -m comcmd.cli schema -o schemas/company.schema.json
+python -m comcmd.cli eval companies/triage-demo --baseline triage-single --variant triage-panel
 ```
 
 The `eval` command is the **multi-agent gate**: it runs a single-agent baseline
@@ -97,7 +101,7 @@ is DBOS/Postgres durability (see [ADR-001](docs/adr/ADR-001-dbos-first-durabilit
 ## Layout
 
 ```
-acme/
+comcmd/
   spec/       CompanySpec models, loader, JSON Schema
   compile/    manifest compiler + typed errors (default-deny)
   kernel/     records, hash-chained ledger, workflow runner, idempotent executor, durable seam
@@ -114,6 +118,6 @@ tests/        + tests/support/ (software WebAuthn authenticator)
 ## Non-goals (Phase 0)
 
 Simulated office chat · self-modifying roles/policies · arbitrary nested agent
-spawning · a custom vector DB · a runtime dependency on MandamusCo (Acme
+spawning · a custom vector DB · a runtime dependency on MandamusCo (Company Command
 reimplements a small "Mandamus-Lite" and never modifies MandamusCo). See
 `IMPLEMENTATION_PLAN.md` §8.

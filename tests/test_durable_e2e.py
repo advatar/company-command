@@ -1,6 +1,6 @@
 """Unified durable execution: a CompanyPack runs the SAME governed flow on
 Postgres + DBOS (durable-memoized work steps, durable event log, gateway
-approval, idempotent executor). Gated on ACME_TEST_DBOS_URL.
+approval, idempotent executor). Gated on COMCMD_TEST_DBOS_URL.
 """
 
 import os
@@ -9,19 +9,19 @@ from pathlib import Path
 
 import pytest
 
-DSN = os.environ.get("ACME_TEST_DBOS_URL")
-pytestmark = pytest.mark.skipif(not DSN, reason="ACME_TEST_DBOS_URL not set")
+DSN = os.environ.get("COMCMD_TEST_DBOS_URL")
+pytestmark = pytest.mark.skipif(not DSN, reason="COMCMD_TEST_DBOS_URL not set")
 
 PACK_DIR = Path(__file__).resolve().parents[1] / "companies" / "auto-steam"
-RP_ID = "acme.local"
-ORIGIN = "https://acme.local"
+RP_ID = "comcmd.local"
+ORIGIN = "https://comcmd.local"
 
 
 def test_autosteam_runs_durably_and_publishes_once(dbos_engine):
-    from acme.gateway.enrollment import CredentialStore
-    from acme.gateway.webauthn_verifier import WebAuthnVerifier
-    from acme.kernel.records import EventType, TaskState
-    from acme.pack import build_runner, load_pack
+    from comcmd.gateway.enrollment import CredentialStore
+    from comcmd.gateway.webauthn_verifier import WebAuthnVerifier
+    from comcmd.kernel.records import EventType, TaskState
+    from comcmd.pack import build_runner, load_pack
     from tests.support.authenticator import SoftAuthenticator
 
     pack = load_pack(PACK_DIR)

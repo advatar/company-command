@@ -1,7 +1,7 @@
-from acme.gateway.gate import Capability
-from acme.gateway.intents import ActionIntent
-from acme.kernel.executor import Executor
-from acme.kernel.ledger import Ledger
+from comcmd.gateway.gate import Capability
+from comcmd.gateway.intents import ActionIntent
+from comcmd.kernel.executor import Executor
+from comcmd.kernel.ledger import Ledger
 
 
 def _intent(**kw):

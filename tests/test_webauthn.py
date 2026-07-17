@@ -2,12 +2,12 @@ import secrets
 
 import pytest
 
-from acme.gateway.enrollment import CredentialStore
-from acme.gateway.webauthn_verifier import WebAuthnVerifier
+from comcmd.gateway.enrollment import CredentialStore
+from comcmd.gateway.webauthn_verifier import WebAuthnVerifier
 from tests.support.authenticator import SoftAuthenticator
 
-RP_ID = "acme.local"
-ORIGIN = "https://acme.local"
+RP_ID = "comcmd.local"
+ORIGIN = "https://comcmd.local"
 
 
 def _enroll(store, principal, *, user_verified=True):

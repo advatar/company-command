@@ -3,7 +3,7 @@
 ## Autonomous Company Framework Strategy
 
 - [x] Assess scope and identify the two reference implementations to review.
-- [x] Create [GitHub issue #1](https://github.com/advatar/Acme/issues/1) documenting the research questions, evidence standards, and delivery plan.
+- [x] Create [GitHub issue #1](https://github.com/advatar/company-command/issues/1) documenting the research questions, evidence standards, and delivery plan.
 - [x] Audit MandamusCo architecture, role model, orchestration, approvals, and reusable components.
 - [x] Audit autonomous-steam-studio architecture, role model, orchestration, approvals, and reusable components.
 - [x] Research Claude Cowork and Codex orchestration using current public evidence, separating facts from inference.
@@ -92,6 +92,13 @@
 **93 tests** pass with Postgres+DBOS; 80 pass (13 infra skipped) with none. Acme is now a runnable backend, not just a CLI/library.
 
 ## Next
+
+## Security hardening — generic control-plane safeguards
+
+- [x] Bind task inputs and upstream operation payloads into immutable approval intents.
+- [x] Preserve original inputs across crash/resume and fail closed on effect refusal.
+- [x] Add bearer-token protection for HTTP control-plane endpoints (health remains public).
+- [x] Add regression tests and operator documentation for the generic safeguards.
 
 - [ ] Remaining items in docs/OPERATIONS.md "Still open" (OpenInference for model calls, row-level DB tenant enforcement, approval-TTL sweeper).
 - [ ] Persist enrollment-in-progress challenges (multi-instance) + a browser UI for the approval ceremony.

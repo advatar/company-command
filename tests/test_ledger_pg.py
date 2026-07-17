@@ -1,6 +1,6 @@
 """Conformance tests for the Postgres durable ledger.
 
-Runs only when ACME_TEST_DATABASE_URL points at a reachable Postgres; otherwise
+Runs only when COMCMD_TEST_DATABASE_URL points at a reachable Postgres; otherwise
 skipped, so the default test run needs no database. Each test uses a unique
 company id, so the shared table stays isolated without truncation.
 """
@@ -10,15 +10,15 @@ import secrets
 
 import pytest
 
-from acme.kernel.records import Event, EventType, TaskState
+from comcmd.kernel.records import Event, EventType, TaskState
 
-DSN = os.environ.get("ACME_TEST_DATABASE_URL")
-pytestmark = pytest.mark.skipif(not DSN, reason="ACME_TEST_DATABASE_URL not set")
+DSN = os.environ.get("COMCMD_TEST_DATABASE_URL")
+pytestmark = pytest.mark.skipif(not DSN, reason="COMCMD_TEST_DATABASE_URL not set")
 
 
 @pytest.fixture
 def pg():
-    from acme.kernel.ledger_pg import PostgresLedger
+    from comcmd.kernel.ledger_pg import PostgresLedger
     led = PostgresLedger(DSN)
     yield led
     led.close()
@@ -58,7 +58,7 @@ def test_tamper_detected(pg):
     assert pg.verify_chain(co) is True
     with psycopg.connect(DSN) as c:
         c.execute(
-            "UPDATE acme_events SET body=%s WHERE company=%s AND task_id='t1' "
+            "UPDATE comcmd_events SET body=%s WHERE company=%s AND task_id='t1' "
             "AND body LIKE %s",
             ('{"type":"step_succeeded","company":"%s","task_id":"t1",'
              '"payload":{"step":"TAMPERED"}}' % co, co, '%"s1"%'))
@@ -70,12 +70,12 @@ def test_crash_resume_over_postgres(pg):
     """The Phase 0 exit gate, but with the durable Postgres ledger underneath."""
     from pathlib import Path
 
-    from acme.compile.compiler import compile_company
-    from acme.gateway.gate import Gateway
-    from acme.kernel.workflow import WorkflowRunner
-    from acme.spec.loader import load_company_spec
-    from acme.workers.api import TaskEnvelope, WorkerResult
-    from acme.workers.native import NativeWorker
+    from comcmd.compile.compiler import compile_company
+    from comcmd.gateway.gate import Gateway
+    from comcmd.kernel.workflow import WorkflowRunner
+    from comcmd.spec.loader import load_company_spec
+    from comcmd.workers.api import TaskEnvelope, WorkerResult
+    from comcmd.workers.native import NativeWorker
 
     example = Path(__file__).resolve().parents[1] / "companies" / "example-studio"
     spec = load_company_spec(example)

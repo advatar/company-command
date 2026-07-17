@@ -12,10 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 def dbos_engine():
     """One DBOS engine per test session — DBOS is a process-wide singleton, so it
     can be launched only once. Shared across all DBOS-backed tests."""
-    dsn = os.environ.get("ACME_TEST_DBOS_URL")
+    dsn = os.environ.get("COMCMD_TEST_DBOS_URL")
     if not dsn:
-        pytest.skip("ACME_TEST_DBOS_URL not set")
-    from acme.kernel.dbos_engine import DbosEngine
-    eng = DbosEngine(dsn, name="acme-tests")
+        pytest.skip("COMCMD_TEST_DBOS_URL not set")
+    from comcmd.kernel.dbos_engine import DbosEngine
+    eng = DbosEngine(dsn, name="comcmd-tests")
     yield eng
     eng.shutdown()

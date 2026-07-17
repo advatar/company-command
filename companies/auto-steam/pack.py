@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import hashlib
 
-from acme.workers.api import TaskEnvelope, WorkerResult
+from comcmd.workers.api import TaskEnvelope, WorkerResult
 
 # Allowed game families (as in autonomous-steam-studio), with core-loop defaults.
 FAMILY_DEFAULTS = {

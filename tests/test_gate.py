@@ -1,11 +1,11 @@
 import pytest
 
-from acme.gateway.gate import Gateway
-from acme.gateway.intents import ActionIntent
-from acme.gateway.policy import Bounds, Tier
-from acme.gateway.verifier import AlwaysApproveVerifier, DenyByDefaultVerifier
-from acme.kernel.ledger import Ledger
-from acme.spec.models import Action, Approval, Risk
+from comcmd.gateway.gate import Gateway
+from comcmd.gateway.intents import ActionIntent
+from comcmd.gateway.policy import Bounds, Tier
+from comcmd.gateway.verifier import AlwaysApproveVerifier, DenyByDefaultVerifier
+from comcmd.kernel.ledger import Ledger
+from comcmd.spec.models import Action, Approval, Risk
 
 
 def _actions():

@@ -2,7 +2,7 @@
 
 Produces registration and authentication responses in the WebAuthn JSON wire
 format that py_webauthn verifies, with the User Verified (UV) flag set — which
-soft-webauthn does not do, and which Acme requires for approvals. Uses ES256
+soft-webauthn does not do, and which Company Command requires for approvals. Uses ES256
 (P-256) over the `cryptography` library only (no extra deps).
 
 This is test scaffolding, not production code: it stands in for a real

@@ -1,5 +1,5 @@
-from acme.kernel.ledger import Ledger
-from acme.kernel.records import Event, EventType
+from comcmd.kernel.ledger import Ledger
+from comcmd.kernel.records import Event, EventType
 
 
 def _ev(company="c1", i=0):

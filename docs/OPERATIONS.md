@@ -1,14 +1,14 @@
-# Acme operations runbook
+# Company Command operations runbook
 
 ## Configuration (environment)
 
 | Variable | Meaning | Default |
 |---|---|---|
-| `ACME_DATABASE_URL` | Postgres DSN. Set → **durable** mode (Postgres ledger + DBOS). Unset → in-process. | unset |
-| `ACME_LEDGER_URL` | Override the ledger DSN separately from the DBOS DSN. | `ACME_DATABASE_URL` |
-| `ACME_RP_ID` / `ACME_RP_ORIGIN` | WebAuthn relying-party id / expected origin. | `localhost` / `https://localhost` |
-| `ACME_MODEL_URL` / `ACME_MODEL_KEY` / `ACME_MODEL_MAP` | OpenAI-compatible model endpoint + key + `profile=model,...` map. | unset (offline-defer) |
-| `ACME_LOG_LEVEL` / `ACME_DBOS_LOG_LEVEL` | Log verbosity. | `INFO` / `WARNING` |
+| `COMCMD_DATABASE_URL` | Postgres DSN. Set → **durable** mode (Postgres ledger + DBOS). Unset → in-process. | unset |
+| `COMCMD_LEDGER_URL` | Override the ledger DSN separately from the DBOS DSN. | `COMCMD_DATABASE_URL` |
+| `COMCMD_RP_ID` / `COMCMD_RP_ORIGIN` | WebAuthn relying-party id / expected origin. | `localhost` / `https://localhost` |
+| `COMCMD_MODEL_URL` / `COMCMD_MODEL_KEY` / `COMCMD_MODEL_MAP` | OpenAI-compatible model endpoint + key + `profile=model,...` map. | unset (offline-defer) |
+| `COMCMD_LOG_LEVEL` / `COMCMD_DBOS_LOG_LEVEL` | Log verbosity. | `INFO` / `WARNING` |
 
 Secrets (DB password, model key) come from the environment/secret manager, never
 from `company.yaml`. Logs never contain challenges, assertions, or capabilities.
@@ -28,7 +28,7 @@ make run-durable       # durable AutoSteam (needs Postgres)
 
 1. Provision Postgres (managed or self-hosted). DBOS creates its own system
    database (`<db>_dbos_sys`) alongside the application DB.
-2. Set `ACME_DATABASE_URL`. On start, Acme uses the Postgres hash-chained ledger,
+2. Set `COMCMD_DATABASE_URL`. On start, Company Command uses the Postgres hash-chained ledger,
    runs work steps as durable DBOS steps, and persists approvals/credentials.
 3. Multiple app instances can share one Postgres: appends are serialized per
    company with a transaction-scoped advisory lock, and an approval opened on one
@@ -36,7 +36,7 @@ make run-durable       # durable AutoSteam (needs Postgres)
 
 ## Human-in-the-loop approval
 
-- List pending approvals: `acme approvals <ledger-url> <company>` (reads the log;
+- List pending approvals: `comcmd approvals <ledger-url> <company>` (reads the log;
   works cross-process against a Postgres DSN).
 - An A2 action needs one user-verified passkey; A3 needs a device-bound key and
   ≥2 distinct approvers (dual control). iProov is optional, for
@@ -44,7 +44,7 @@ make run-durable       # durable AutoSteam (needs Postgres)
 
 ## Health & audit
 
-- **Chain integrity:** `acme inspect <ledger-url> <company>` prints events and
+- **Chain integrity:** `comcmd inspect <ledger-url> <company>` prints events and
   reports `chain valid`. A `false` means truncation/rewrite — investigate before
   trusting downstream state.
 - **Recovery:** in durable mode, a crashed process resumes on restart — the
@@ -63,7 +63,7 @@ make run-durable       # durable AutoSteam (needs Postgres)
   (`E-FANOUT`/`E-VERIFY`).
 - **Per-company queues:** `DbosEngine.company_queue(company, concurrency=...)` /
   `enqueue(..., per_company=True)` — one tenant cannot starve others.
-- **Telemetry:** set `ACME_OTEL=1` (with `pip install '.[otel]'`) to export
+- **Telemetry:** set `COMCMD_OTEL=1` (with `pip install '.[otel]'`) to export
   gateway decisions and spans via OpenTelemetry; secrets are scrubbed and the
   hash-chained event log remains the authoritative audit trail.
 

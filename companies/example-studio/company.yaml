@@ -1,4 +1,4 @@
-apiVersion: acme.dev/v1alpha1
+apiVersion: comcmd.dev/v1alpha1
 kind: Company
 metadata:
   name: example-studio
