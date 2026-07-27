@@ -27,6 +27,7 @@ from comcmd.kernel.records import CompanyRevision
 from comcmd.kernel.workflow import WorkflowRunner
 from comcmd.spec.loader import load_company_spec
 from comcmd.spec.models import CompanySpec
+from comcmd.workers.api import Worker
 from comcmd.workers.native import NativeWorker, Skill
 
 
@@ -86,7 +87,7 @@ class RunContext:
 
 def build_runner(pack: CompanyPack, *, ledger_url: str | None = None,
                  verifier: ApprovalVerifier | None = None,
-                 durable_engine=None) -> RunContext:
+                 durable_engine=None, worker: Worker | None = None) -> RunContext:
     """Compile a pack and wire runner -> gateway -> worker(skills) -> executor(handlers).
 
     Pass ``durable_engine`` (a launched DbosEngine) to run work steps
@@ -98,7 +99,7 @@ def build_runner(pack: CompanyPack, *, ledger_url: str | None = None,
     actions = {a.id: a for a in pack.spec.actions}
     gateway = Gateway(ledger, actions, verifier=verifier)
     executor = Executor(ledger, dict(pack.handlers))
-    worker = NativeWorker(skills=pack.skills)
-    runner = WorkflowRunner(revision, ledger, worker, gateway, executor,
+    selected_worker = worker or NativeWorker(skills=pack.skills)
+    runner = WorkflowRunner(revision, ledger, selected_worker, gateway, executor,
                             durable_engine=durable_engine)
     return RunContext(runner=runner, gateway=gateway, ledger=ledger, revision=revision)

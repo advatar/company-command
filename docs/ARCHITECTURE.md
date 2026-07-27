@@ -26,7 +26,7 @@ bundles of skills/tools/scopes/budgets, not simulated employees.
 | Gateway | `comcmd/gateway` | `ActionIntent` → A0–A4 tiers → default-deny decision; scoped capabilities; receipts |
 | Approval | `comcmd/gateway/webauthn_verifier.py`, `approvals.py`, `stores_pg.py` | WebAuthn assertion bound 1:1 to the action digest; distinct-approver quorum; durable stores |
 | Executor | `comcmd/kernel/executor.py` | Performs an authorized effect exactly once (idempotent by digest) |
-| Workers | `comcmd/workers` | Native worker; Codex/OpenHands CLI adapters |
+| Workers | `comcmd/workers` | Native/Loop workers; Codex/OpenHands CLI adapters; read-only OpenWorker session adapter |
 | Models | `comcmd/models` | Capability profiles → backends (offline-defer / OpenAI-compatible) |
 | Pack | `comcmd/pack.py` | A company = `company.yaml` + `pack.py` (SKILLS/HANDLERS) |
 

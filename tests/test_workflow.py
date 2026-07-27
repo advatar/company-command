@@ -5,7 +5,7 @@ import pytest
 from comcmd.compile.compiler import compile_company
 from comcmd.gateway.gate import Gateway
 from comcmd.kernel.ledger import Ledger
-from comcmd.kernel.records import TaskState
+from comcmd.kernel.records import EventType, TaskState
 from comcmd.kernel.workflow import WorkflowRunner, WorkflowError
 from comcmd.spec.loader import load_company_spec
 from comcmd.workers.api import TaskEnvelope, WorkerResult
@@ -86,6 +86,34 @@ def test_resume_is_idempotent_when_already_complete():
     again = runner.resume(task_id, "validate-product")
     assert again.state == TaskState.WAITING_FOR_HUMAN
     assert effects == ["research", "brief"]  # no duplication
+
+
+def test_deferred_worker_does_not_complete_step():
+    spec, rev = _revision()
+    ledger = Ledger(":memory:")
+    gateway = Gateway(ledger, {a.id: a for a in spec.actions})
+
+    def deferred(env: TaskEnvelope) -> WorkerResult:
+        return WorkerResult(
+            status="deferred",
+            artifact={"loop": {"run_id": "loop-1", "status": "EXHAUSTED"}},
+            usage={"reason": "iteration limit reached"},
+        )
+
+    worker = NativeWorker(skills={"research": deferred})
+    runner = WorkflowRunner(rev, ledger, worker, gateway)
+    handle = runner.start("validate-product")
+
+    assert handle.state == TaskState.FAILED_RETRYABLE
+    assert handle.waiting_on["step"] == "research"
+    assert handle.waiting_on["reason"] == "worker deferred"
+    events = [sealed.event for sealed in ledger.read(rev.company_name)]
+    assert any(event.type == EventType.artifact_written for event in events)
+    assert not any(
+        event.type == EventType.step_succeeded
+        and event.payload.get("step") == "research"
+        for event in events
+    )
 
 
 def _only_task_id(ledger, company):

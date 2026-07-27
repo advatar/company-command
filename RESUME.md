@@ -1,5 +1,47 @@
 # RESUME — pick up here after reboot
 
+## 2026-07-27 integration handoff
+
+Company Command now has two additional optional workers:
+
+- `comcmd.workers.loop.LoopWorker` runs bounded Codex/Claude repository work in
+  persistent task/step-specific isolated clones. Acme owns providers, limits,
+  state paths, and environment exposure. It returns Loop state plus Git
+  base/head/diff evidence, resumes interrupted runs, and reuses terminal states.
+- `comcmd.workers.openworker.OpenWorker` connects to a local OpenWorker session
+  in forced read-only `plan` mode and returns artifacts without delegating
+  effect authorization.
+
+The workflow kernel now handles `WorkerResult(status="deferred")` correctly:
+the task becomes `FAILED_RETRYABLE`, evidence is recorded, and the step is not
+emitted as `step_succeeded`. Durable work-step memoization preserves worker
+usage and questions as well as status/artifact.
+
+Loop is available programmatically through `build_runner(..., worker=...)` and
+from `comcmd run --worker loop`. Install the optional dependency with
+`pip install -e ".[loop]"`. Consequential effects remain separate
+`ActionIntent`/human-gate steps; worker environment filtering is defense in
+depth and does not replace OS/container network and filesystem isolation.
+
+Validation baseline on 2026-07-27:
+
+```bash
+cd /Users/johansellstrom/dev/advatar/Acme
+.venv/bin/pytest tests --disable-warnings
+```
+
+Expected: 90 passed, 13 infrastructure-gated skips. Loop's own suite has 18
+passing tests. No live paid Codex/Claude/OpenWorker session was used in tests.
+
+Next useful work:
+
+1. Add declarative per-role worker routing; the current CLI selects one worker
+   for all work steps in a run.
+2. Run authorized end-to-end smoke tests against real Codex, Claude, and
+   OpenWorker installations inside the intended worker sandbox.
+3. Add cancellation/lease propagation from Acme into active Loop subprocesses.
+4. Publish `agent-loop` before relying on the `comcmd[loop]` extra from PyPI.
+
 **Last session:** 2026-07-16. Everything below is committed and pushed to
 `main`. Nothing is lost by a reboot except the local Postgres container and the
 venv (both trivially recreated — see below).

@@ -66,15 +66,50 @@ def cmd_run(args) -> int:
         print(f"[durable] DBOS execution on {_redact(ledger_url)}")
 
     pack = load_pack(args.company)
+    worker = None
+    if args.worker == "loop":
+        if not args.repository:
+            print("--repository is required with --worker loop", file=sys.stderr)
+            return 2
+        from comcmd.workers.loop import LoopPolicy, LoopWorker
+        worker = LoopWorker(
+            args.repository,
+            args.workspace_root,
+            policy=LoopPolicy(
+                executor_provider=args.loop_executor,
+                verifier_provider=args.loop_verifier,
+                max_iterations=args.loop_max_iterations,
+                max_minutes=args.loop_max_minutes,
+                step_timeout_seconds=args.loop_step_timeout,
+            ),
+        )
+    elif args.worker == "openworker":
+        from comcmd.workers.openworker import OpenWorker
+        worker = OpenWorker(
+            args.openworker_url,
+            workspace=args.openworker_workspace,
+            agent=args.openworker_agent,
+            timeout_seconds=args.openworker_timeout,
+        )
     try:
-        ctx = build_runner(pack, ledger_url=ledger_url, durable_engine=engine)
+        ctx = build_runner(
+            pack,
+            ledger_url=ledger_url,
+            durable_engine=engine,
+            worker=worker,
+        )
     except CompileFailed as exc:
         print("COMPILE FAILED (run aborted):", file=sys.stderr)
         for e in exc.errors:
             print(f"  - {e}", file=sys.stderr)
         return 1
 
-    handle = ctx.runner.start(args.workflow, inputs={})
+    inputs = {}
+    if args.goal:
+        inputs["goal"] = args.goal
+    if args.acceptance:
+        inputs["acceptance"] = args.acceptance
+    handle = ctx.runner.start(args.workflow, inputs=inputs)
     print(f"task {handle.task_id}  state={handle.state.value}")
     for sid, art in handle.artifacts.items():
         print(f"  step {sid}: {art}")
@@ -197,6 +232,27 @@ def build_parser() -> argparse.ArgumentParser:
                     "(default in-memory, or $COMCMD_DATABASE_URL)")
     pr.add_argument("--durable", action="store_true",
                     help="run work steps durably on DBOS/Postgres (needs a DSN)")
+    pr.add_argument("--worker", choices=("native", "loop", "openworker"), default="native",
+                    help="worker adapter for work steps (default: native)")
+    pr.add_argument("--repository",
+                    help="source repository cloned for each Loop task step")
+    pr.add_argument("--workspace-root", default="~/.local/state/comcmd/loop-workspaces",
+                    help="persistent isolated Loop workspaces")
+    pr.add_argument("--goal", help="repository-engineering goal for Loop")
+    pr.add_argument("--acceptance", help="observable acceptance criteria for Loop")
+    pr.add_argument("--loop-executor", choices=("codex", "claude"), default="codex")
+    pr.add_argument("--loop-verifier", choices=("codex", "claude"), default="claude")
+    pr.add_argument("--loop-max-iterations", type=int, default=8)
+    pr.add_argument("--loop-max-minutes", type=float, default=60)
+    pr.add_argument("--loop-step-timeout", type=int, default=900)
+    pr.add_argument("--openworker-url", default="http://127.0.0.1:8765",
+                    help="running OpenWorker server (used with --worker openworker)")
+    pr.add_argument("--openworker-workspace", default=".",
+                    help="readable workspace exposed to OpenWorker")
+    pr.add_argument("--openworker-agent", default="cowork",
+                    help="OpenWorker agent name (default: cowork)")
+    pr.add_argument("--openworker-timeout", type=float, default=600,
+                    help="seconds to wait for one OpenWorker turn")
     pr.set_defaults(func=cmd_run)
 
     pi = sub.add_parser("inspect", help="dump a ledger's events")
