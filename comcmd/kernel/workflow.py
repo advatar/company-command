@@ -136,6 +136,28 @@ class WorkflowRunner:
                 handle.state = TaskState.FAILED_RETRYABLE
                 self._set_state(handle)
                 raise WorkflowError(f"step {sid} failed: {result.usage}")
+            if result.status == "deferred":
+                handle.state = TaskState.FAILED_RETRYABLE
+                handle.waiting_on = {
+                    "step": sid,
+                    "reason": "worker deferred",
+                    "usage": result.usage,
+                    "artifact": result.artifact,
+                }
+                if result.artifact is not None:
+                    self._emit(EventType.artifact_written, handle.task_id, {
+                        "step": sid,
+                        "status": "deferred",
+                        "artifact": result.artifact,
+                    })
+                self._set_state(handle)
+                return handle
+            if result.status != "ok":
+                handle.state = TaskState.FAILED_RETRYABLE
+                self._set_state(handle)
+                raise WorkflowError(
+                    f"step {sid} returned unknown worker status {result.status!r}"
+                )
             artifact = result.artifact or {}
             self._emit(EventType.step_succeeded, handle.task_id,
                        {"step": sid, "artifact": artifact})
@@ -166,9 +188,19 @@ class WorkflowRunner:
             # checkpointed; intents are a human-gate concern, not a work step.
             def thunk() -> dict:
                 r = self._worker.run(envelope)
-                return {"status": r.status, "artifact": r.artifact or {}}
+                return {
+                    "status": r.status,
+                    "artifact": r.artifact,
+                    "questions": r.questions,
+                    "usage": r.usage,
+                }
             d = self._durable.run_step(handle.task_id, step["id"], thunk)
-            return WorkerResult(status=d["status"], artifact=d["artifact"])
+            return WorkerResult(
+                status=d["status"],
+                artifact=d.get("artifact"),
+                questions=d.get("questions", []),
+                usage=d.get("usage", {}),
+            )
 
         result = self._worker.run(envelope)
         # Any intent a worker emits must clear the gateway; none auto-executes.
@@ -374,4 +406,4 @@ class WorkflowRunner:
 
     def _set_state(self, handle: TaskHandle) -> None:
         self._emit(EventType.task_state_changed, handle.task_id,
-                   {"state": handle.state.value})
+                   {"state": handle.state.value, "waiting_on": handle.waiting_on})

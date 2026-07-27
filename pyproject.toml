@@ -27,6 +27,10 @@ server = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 durable = ["psycopg[binary]>=3", "dbos>=2"]
 # Optional OpenTelemetry export of gateway decisions / spans (COMCMD_OTEL=1).
 otel = ["opentelemetry-api>=1.20"]
+# Bounded Codex/Claude repository-engineering worker.
+loop = ["agent-loop>=0.1.0,<0.2"]
+# Client for a running local OpenWorker session server.
+openworker = ["websocket-client>=1.8,<2"]
 
 [project.scripts]
 comcmd = "comcmd.cli:main"

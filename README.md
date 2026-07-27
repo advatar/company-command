@@ -49,6 +49,12 @@ Implemented and tested (**40 tests**):
   path (`comcmd/kernel/workflow.py`)
 - **Worker API** + bounded native worker; **model profiles** with an
   offline-defer backend and an OpenAI-compatible backend (`comcmd/workers`, `comcmd/models`)
+- Optional **Loop worker** for bounded repository engineering with Codex and/or
+  Claude, isolated task workspaces, independent verification, and resumable
+  run evidence (`comcmd/workers/loop.py`)
+- Optional **OpenWorker adapter** for local read-only research, connectors, and
+  artifact production. It forces OpenWorker into `plan` mode; external writes
+  remain separate Company Command action intents (`comcmd/workers/openworker.py`).
 - Operator **CLI**: `compile`, `run`, `inspect`, `schema`, `approvals`
 
 - **Postgres durable ledger** (`comcmd/kernel/ledger_pg.py`, `make_ledger`):
@@ -79,6 +85,56 @@ python -m comcmd.cli schema -o schemas/company.schema.json
 python -m comcmd.cli eval companies/triage-demo --baseline triage-single --variant triage-panel
 ```
 
+### Run repository work through Loop
+
+Install the optional worker dependency, then select Loop for a workflow:
+
+```bash
+pip install -e ".[dev,loop]"
+
+comcmd run companies/example-studio validate-product \
+  --worker loop \
+  --repository /absolute/path/to/repository \
+  --workspace-root ~/.local/state/comcmd/loop-workspaces \
+  --goal "Make the test suite pass without weakening tests" \
+  --acceptance "pytest exits successfully" \
+  --loop-executor codex \
+  --loop-verifier claude
+```
+
+Acme generates the Loop configuration from trusted CLI/operator policy. Task
+input cannot inject commands, providers, limits, environment variables, or
+state paths. Every task step gets a persistent isolated clone, allowing an
+interrupted Loop run to resume in the same workspace. `PASSED` becomes an `ok`
+worker artifact; `EXHAUSTED` or `STOPPED` parks the task as
+`FAILED_RETRYABLE`; `FAILED` remains an error.
+
+Loop may edit only the isolated repository. Merge, deploy, publish, messaging,
+payments, and other external effects remain separate Acme `ActionIntent` and
+human-gate steps. Run Loop workers inside the same credential-stripped,
+network-constrained worker runtime required for other CLI agents; process
+environment filtering is defense in depth, not a filesystem or network sandbox.
+
+### Use OpenWorker as a governed read-only worker
+
+Start OpenWorker's local server, then point a Company Command workflow at it:
+
+```bash
+pip install -e ".[openworker]"
+openworker-server --cwd /absolute/readable/workspace --port 8765
+
+comcmd run companies/example-studio validate-product \
+  --worker openworker \
+  --openworker-url http://127.0.0.1:8765 \
+  --openworker-workspace /absolute/readable/workspace
+```
+
+The adapter uses OpenWorker's session API and forces `plan` mode. Read-only
+connector calls may contribute to the returned artifact. File writes, commands,
+messages, calendar changes, and other consequential operations are denied in
+OpenWorker and must instead be represented as Company Command `ActionIntent`s,
+authorized by the gateway, and executed idempotently by Company Command.
+
 The `eval` command is the **multi-agent gate**: it runs a single-agent baseline
 against a fan-out+verify variant over scenarios and only reports `PROMOTE` if the
 multi-agent variant beats the baseline on success without unacceptable cost /
@@ -107,7 +163,7 @@ comcmd/
   kernel/     records, hash-chained ledger, workflow runner, idempotent executor, durable seam
   gateway/    ActionIntent, A0–A4 policy, default-deny gate, approvals+quorum,
               WebAuthn verifier, credential enrollment
-  workers/    Worker API + native worker + Codex/OpenHands CLI adapters
+  workers/    Worker API + native/Loop/OpenWorker workers + Codex/OpenHands adapters
   models/     capability profiles + backends (offline-defer / OpenAI-compat)
   pack.py     CompanyPack loader + build_runner wiring
   cli.py
